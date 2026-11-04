@@ -1,0 +1,11 @@
+# Manual match decisions. They always win over automatic matching and survive every update.
+#
+# One line per file:   <file name> = <decision>     (text after a " #" is a comment)
+#
+#   <file name>  exactly as in files.csv; the extension may be left off.
+#   <decision>   a TMDB id                     [2016] Elle (French).mkv = 337674
+#                a TMDB or IMDb link           ... = https://www.themoviedb.org/movie/337674-elle
+#                an IMDb id                    ... = tt3716530
+#                skip                          not a film, or leave it off the map
+#
+# The review page (review.cmd) writes these lines for you.

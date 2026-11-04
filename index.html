@@ -1,0 +1,1993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lumière</title>
+<meta name="description" content="A map of a private film collection, where every film sits beside the films it most resembles.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0c1428">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c1428'/%3E%3Cpath d='M16 5l2.6 8.4L27 16l-8.4 2.6L16 27l-2.6-8.4L5 16l8.4-2.6z' fill='%23f1e8d4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/fonts.css">
+<style>
+:root {
+  --night: #0c1428;
+  --night-2: #121d38;
+  --night-3: #1a2747;
+  --glass: rgba(11, 18, 36, 0.76);
+  --glass-strong: rgba(9, 15, 30, 0.93);
+  --line: rgba(241, 232, 212, 0.12);
+  --line-strong: rgba(241, 232, 212, 0.26);
+  --vellum: #f1e8d4;
+  --dust: #a2abc2;
+  --faint: #6f7994;
+  --brass: #d8b46a;
+  --serif: 'Cormorant', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --sans: 'Sofia Sans Semi Condensed', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--night);
+  color: var(--vellum);
+  font: 400 15px/1.5 var(--sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 6px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ---------- the map ---------- */
+html { background: radial-gradient(130% 95% at 50% 42%, #142243 0%, #0c1428 52%, #060b18 100%) fixed; }
+body { background: transparent; }
+.stars {
+  position: fixed; inset: -640px; pointer-events: none;
+  background-repeat: repeat; will-change: transform; opacity: 0.9;
+}
+#map {
+  position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+  touch-action: none; cursor: grab;
+}
+#map.is-dragging { cursor: grabbing; }
+#map.is-pointing { cursor: pointer; }
+.veil {
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 85% 75% at 50% 50%, transparent 58%, rgba(3, 6, 14, 0.6) 100%);
+}
+
+/* ---------- title ---------- */
+.brand {
+  position: fixed; top: 18px; left: 26px; z-index: 5;
+  max-width: min(46vw, 560px);
+  pointer-events: none;
+  transition: opacity .6s var(--ease), transform .6s var(--ease);
+}
+.brand__title {
+  margin: 0;
+  font: 600 clamp(34px, 4.4vw, 54px)/0.95 var(--serif);
+  letter-spacing: 0.005em;
+  text-shadow: 0 0 28px rgba(241, 232, 212, 0.28), 0 0 2px rgba(241, 232, 212, 0.4);
+}
+.brand__line {
+  margin: 10px 0 0;
+  max-width: 36ch;
+  color: var(--dust);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.brand__count { color: var(--vellum); font-weight: 600; }
+body.intro .brand { opacity: 0; transform: translateY(-6px); }
+
+/* ---------- search ---------- */
+.search {
+  position: fixed; top: 18px; right: 22px; z-index: 30;
+  width: min(390px, calc(100vw - 44px));
+}
+.search__box {
+  display: flex; align-items: center; gap: 10px;
+  height: 46px; padding: 0 12px 0 14px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  transition: border-color .2s;
+}
+.search__box:focus-within { border-color: var(--line-strong); }
+.search__box svg { color: var(--dust); }
+.search input {
+  flex: 1; min-width: 0; height: 100%;
+  background: none; border: 0; outline: none;
+  font-size: 16px; letter-spacing: 0.01em;
+}
+.search input::placeholder { color: var(--faint); }
+.search input::-webkit-search-cancel-button { display: none; }
+.search kbd {
+  font: 600 12px/1 var(--sans); color: var(--faint);
+  border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px;
+}
+.results {
+  margin-top: 8px; max-height: min(70vh, 560px); overflow: auto;
+  background: var(--glass-strong);
+  border: 1px solid var(--line); border-radius: 13px;
+  padding: 6px;
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+}
+.results__group { margin: 8px 10px 4px; font: italic 500 16px/1.2 var(--serif); color: var(--dust); }
+.result {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 7px 10px; border-radius: 9px; text-align: left;
+}
+.result[aria-selected="true"], .result:hover { background: rgba(241, 232, 212, 0.08); }
+.result__img { width: 30px; height: 45px; border-radius: 3px; object-fit: cover; background: var(--night-3); flex: none; }
+.result__dot { width: 30px; height: 30px; flex: none; display: grid; place-items: center; color: var(--dust); }
+.result__text { min-width: 0; }
+.result__title { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result__meta { display: block; color: var(--dust); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.results__empty { padding: 14px; color: var(--dust); }
+
+/* ---------- banner (spotlight, path, filters) ---------- */
+.banner {
+  position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 8px 8px 16px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+.banner[hidden] { display: none; }
+.banner__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banner__text b { font-weight: 600; }
+.banner__swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.btn-quiet {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  color: var(--vellum); background: rgba(241, 232, 212, 0.08);
+  font-weight: 600; font-size: 14px; white-space: nowrap;
+}
+.btn-quiet:hover { background: rgba(241, 232, 212, 0.16); }
+
+/* ---------- bottom bar: dock, years, tools ---------- */
+.bottombar {
+  position: fixed; left: 22px; right: 22px; bottom: calc(18px + var(--safe-b)); z-index: 10;
+  display: flex; align-items: flex-end; gap: 16px;
+  pointer-events: none;
+}
+.bottombar > * { pointer-events: auto; }
+@media (min-width: 761px) {
+  .bottombar { transition: left .5s var(--ease), right .5s var(--ease); }
+  body.detail-open .bottombar { right: calc(min(460px, 100vw - 24px) + 28px); }
+  body.drawer-open .bottombar { left: calc(min(400px, 100vw - 24px) + 28px); }
+  body.detail-open.drawer-open .timeline { display: none; }
+}
+.dock, .tools {
+  display: flex; gap: 2px; padding: 5px; flex: none;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+.dock button, .tools button {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 13px; border-radius: 11px;
+  color: var(--dust); font-weight: 500; font-size: 15px; letter-spacing: 0.01em;
+  transition: color .2s, background .2s;
+}
+.tools button { width: 40px; padding: 0; justify-content: center; }
+.dock button:hover, .tools button:hover { color: var(--vellum); background: rgba(241, 232, 212, 0.07); }
+.dock button[aria-pressed="true"] { color: var(--vellum); background: rgba(241, 232, 212, 0.11); }
+.dock__badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--brass); color: #1b1407; font: 700 11px/18px var(--sans); text-align: center;
+}
+.dock__badge[hidden] { display: none; }
+
+/* ---------- timeline ---------- */
+.timeline {
+  flex: 1 1 auto; min-width: 0; max-width: 560px; margin: 0 auto;
+  padding: 8px 12px 6px;
+  background: var(--glass);
+  border: 1px solid var(--line); border-radius: 15px;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+.years { position: relative; height: 38px; }
+.years canvas { position: absolute; inset: 0 0 auto 0; width: 100%; height: 30px; display: block; }
+.years input[type=range] {
+  position: absolute; left: -7px; right: -7px; top: 18px; width: calc(100% + 14px); margin: 0;
+  -webkit-appearance: none; appearance: none; background: none; pointer-events: none; height: 22px;
+}
+.years input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; pointer-events: auto; width: 14px; height: 22px; border-radius: 5px;
+  background: var(--vellum); border: 3px solid var(--night); cursor: ew-resize;
+}
+.years input[type=range]::-moz-range-thumb {
+  pointer-events: auto; width: 10px; height: 18px; border-radius: 5px;
+  background: var(--vellum); border: 3px solid var(--night); cursor: ew-resize;
+}
+.years input[type=range]::-webkit-slider-runnable-track { background: none; }
+.years__labels { display: flex; justify-content: space-between; color: var(--dust); font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.years__labels b { color: var(--vellum); font-weight: 600; }
+
+/* ---------- side panels ---------- */
+.panel {
+  position: fixed; top: 12px; bottom: 12px; z-index: 40;
+  display: flex; flex-direction: column;
+  background: var(--glass-strong);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  visibility: hidden;
+  transition: transform .5s var(--ease), visibility 0s linear .5s;
+}
+.panel.is-open { visibility: visible; transform: none; transition: transform .5s var(--ease), visibility 0s; }
+.detail { right: 12px; width: min(460px, calc(100vw - 24px)); transform: translateX(calc(100% + 24px)); }
+.drawer { left: 12px; width: min(400px, calc(100vw - 24px)); transform: translateX(calc(-100% - 24px)); }
+.panel__close {
+  position: absolute; top: 12px; right: 12px; z-index: 3;
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--vellum); background: rgba(9, 15, 30, 0.6);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.panel__close:hover { background: rgba(241, 232, 212, 0.14); }
+.panel__scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(241,232,212,.2) transparent; }
+.panel__grip { display: none; }
+
+/* ---------- film detail ---------- */
+.film__hero { position: relative; min-height: 120px; }
+.film__backdrop {
+  position: absolute; inset: 0 0 auto 0; height: 250px;
+  background-size: cover; background-position: center 25%;
+  opacity: 0; transition: opacity .8s;
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 55%, transparent 100%);
+          mask-image: linear-gradient(to bottom, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 55%, transparent 100%);
+}
+.film__backdrop.is-loaded { opacity: 0.55; }
+.film__head { position: relative; display: flex; gap: 18px; align-items: flex-end; padding: 96px 24px 0; }
+.film__poster {
+  width: 112px; aspect-ratio: 2 / 3; flex: none; border-radius: 6px; object-fit: cover;
+  background: var(--night-3);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(241, 232, 212, 0.12);
+}
+.film__titles { min-width: 0; padding-bottom: 4px; }
+.film__title { margin: 0; font: 600 34px/1.02 var(--serif); letter-spacing: 0.003em; overflow-wrap: anywhere; }
+.film__original { margin: 6px 0 0; font: italic 500 19px/1.2 var(--serif); color: var(--dust); overflow-wrap: anywhere; }
+.film__original.is-script { font-style: normal; font-size: 17px; letter-spacing: 0.04em; }
+.film__facts {
+  display: flex; flex-wrap: wrap; gap: 4px 0; margin: 18px 24px 0; padding: 0; list-style: none;
+  font-weight: 500; font-size: 14px; letter-spacing: 0.04em; color: var(--dust); font-variant-numeric: tabular-nums;
+}
+.film__facts li { padding: 0 12px; border-left: 1px solid var(--line-strong); }
+.film__facts li:first-child { padding-left: 0; border-left: 0; }
+.film__credit { margin: 14px 24px 0; font-size: 16px; }
+.film__credit span { color: var(--dust); }
+.film__tagline { margin: 18px 24px 0; font: italic 500 21px/1.3 var(--serif); color: var(--vellum); }
+.film__overview { margin: 12px 24px 0; font-size: 16px; line-height: 1.6; color: #ddd6c6; max-width: 62ch; }
+.film__actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 24px 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; border-radius: 8px;
+  border: 1px solid var(--line); background: rgba(241, 232, 212, 0.04);
+  color: var(--vellum); font-weight: 500; font-size: 14px; text-decoration: none; white-space: nowrap;
+  transition: background .2s, border-color .2s;
+}
+.chip:hover { background: rgba(241, 232, 212, 0.1); border-color: var(--line-strong); }
+.chip[aria-pressed="true"] { background: rgba(216, 180, 106, 0.18); border-color: rgba(216, 180, 106, 0.6); }
+.chip svg.i { width: 15px; height: 15px; }
+.swatch { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 10px currentColor; }
+.section { margin: 30px 24px 0; }
+.section__title { margin: 0 0 10px; font: italic 500 23px/1.15 var(--serif); color: var(--vellum); }
+.section__note { margin: -4px 0 12px; color: var(--dust); font-size: 14px; }
+.kv { display: grid; grid-template-columns: 112px 1fr; gap: 7px 14px; margin: 0; font-size: 15px; }
+.kv dt { color: var(--dust); }
+.kv dd { margin: 0; }
+.person { color: var(--vellum); text-decoration: underline; text-decoration-color: rgba(241,232,212,.25); text-underline-offset: 3px; }
+.person:hover { text-decoration-color: var(--brass); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 13px; color: var(--dust); padding: 3px 9px; border-radius: 6px; background: rgba(241,232,212,.05); }
+button.tag:hover { color: var(--vellum); background: rgba(241,232,212,.1); }
+.files { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.file { display: flex; gap: 10px; align-items: center; padding: 9px 10px 9px 12px; border-radius: 10px; background: rgba(241,232,212,.04); border: 1px solid var(--line); }
+.file__name { flex: 1; min-width: 0; font-size: 13.5px; color: #d9d2c2; overflow-wrap: anywhere; }
+.rating { display: flex; align-items: baseline; gap: 10px; }
+.rating__num { font: 600 30px/1 var(--serif); }
+.rating__bar { flex: 1; height: 3px; border-radius: 2px; background: rgba(241,232,212,.1); position: relative; top: -6px; }
+.rating__bar i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: var(--brass); }
+.rating__votes { color: var(--dust); font-size: 13px; }
+
+.near { list-style: none; margin: 0; padding: 0; }
+.near__item { display: flex; gap: 12px; align-items: center; width: 100%; padding: 8px 6px; border-radius: 10px; text-align: left; }
+.near__item:hover { background: rgba(241, 232, 212, 0.06); }
+.near__rank { width: 20px; flex: none; text-align: right; color: var(--faint); font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
+.near__img { width: 38px; aspect-ratio: 2/3; flex: none; border-radius: 3px; object-fit: cover; background: var(--night-3); }
+.near__text { flex: 1; min-width: 0; }
+.near__title { display: block; font-weight: 600; font-size: 15.5px; line-height: 1.25; }
+.near__title small { color: var(--dust); font-weight: 400; font-size: 14px; margin-left: 4px; }
+.near__why { display: block; color: var(--dust); font-size: 13.5px; line-height: 1.35; margin-top: 2px; }
+.near__score { width: 44px; flex: none; text-align: right; font-variant-numeric: tabular-nums; color: var(--dust); font-size: 13px; }
+.near__score i { display: block; height: 2px; margin-top: 5px; border-radius: 1px; background: currentColor; opacity: .7; }
+.attribution { margin: 34px 24px 28px; color: var(--faint); font-size: 12.5px; }
+
+/* ---------- drawer ---------- */
+.drawer__tabs { display: flex; gap: 0; padding: 12px 52px 0 12px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.drawer__tabs::-webkit-scrollbar { display: none; }
+.drawer__tab { padding: 7px 9px; border-radius: 9px; color: var(--dust); font-weight: 500; font-size: 14.5px; white-space: nowrap; }
+.drawer__tab:hover { color: var(--vellum); }
+.drawer__tab[aria-selected="true"] { color: var(--vellum); background: rgba(241,232,212,.1); }
+.drawer__body { padding: 8px 22px 30px; }
+.drawer h2 { margin: 16px 0 6px; font: 600 32px/1.05 var(--serif); }
+.drawer h3 { margin: 26px 0 10px; font: italic 500 22px/1.15 var(--serif); }
+.drawer p { color: #d9d2c2; margin: 8px 0; line-height: 1.55; }
+.muted { color: var(--dust) !important; }
+.regions { list-style: none; margin: 10px 0 0; padding: 0; }
+.region { display: grid; grid-template-columns: 14px 1fr auto; gap: 4px 12px; align-items: baseline; width: 100%; padding: 10px 8px; border-radius: 10px; text-align: left; }
+.region:hover { background: rgba(241,232,212,.06); }
+.region .swatch { width: 11px; height: 11px; position: relative; top: 1px; }
+.region__name { font: italic 600 20px/1.15 var(--serif); }
+.region__n { color: var(--dust); font-variant-numeric: tabular-nums; font-size: 14px; }
+.region__line { grid-column: 2 / 4; color: var(--dust); font-size: 13.5px; line-height: 1.35; }
+.field { margin: 18px 0 0; }
+.field__label { display: block; margin-bottom: 8px; color: var(--dust); font-size: 14px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.lens-legend { display: flex; align-items: center; gap: 10px; margin-top: 10px; color: var(--dust); font-size: 13px; }
+.lens-legend i { flex: 1; height: 6px; border-radius: 3px; }
+.range-row { display: flex; align-items: center; gap: 12px; }
+.range-row input[type=range] { flex: 1; accent-color: var(--brass); }
+.range-row output { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.grid-films { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 16px 12px; margin-top: 14px; }
+.card-film { display: block; text-align: left; }
+.card-film img, .card-film .ph { width: 100%; aspect-ratio: 2/3; border-radius: 5px; object-fit: cover; background: var(--night-3); display: block; box-shadow: 0 0 0 1px rgba(241,232,212,.08); }
+.card-film .ph { display: grid; place-items: center; padding: 8px; font: italic 500 15px/1.2 var(--serif); color: var(--dust); text-align: center; }
+.card-film:hover img { box-shadow: 0 0 0 2px var(--brass); }
+.card-film span { display: block; margin-top: 6px; font-size: 13.5px; line-height: 1.25; font-weight: 600; }
+.card-film small { color: var(--dust); font-weight: 400; }
+.select { background: var(--night-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 16px; margin-top: 16px; }
+.stat__num { display: block; font: 600 34px/1 var(--serif); }
+.stat__label { display: block; color: var(--dust); font-size: 14px; margin-top: 4px; }
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.bars li { display: grid; grid-template-columns: 1fr 34px; gap: 2px 10px; align-items: center; font-size: 14px; }
+.bars li button { text-align: left; }
+.bars i { grid-column: 1 / 2; display: block; height: 3px; border-radius: 2px; background: rgba(241,232,212,.5); }
+.bars span.n { color: var(--dust); text-align: right; font-variant-numeric: tabular-nums; }
+.plain-list { margin: 0; padding: 0 0 0 18px; color: #d9d2c2; }
+.plain-list li { margin: 4px 0; }
+.tmdb { display: flex; gap: 14px; align-items: center; margin-top: 12px; }
+.tmdb svg { width: 78px; height: auto; flex: none; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; color: #d9d2c2; font-size: 14.5px; }
+.keys kbd { font: 600 12px/1 var(--sans); border: 1px solid var(--line-strong); border-radius: 5px; padding: 4px 7px; color: var(--vellum); justify-self: start; }
+
+/* ---------- tooltip, toast, notices ---------- */
+.tip {
+  position: fixed; z-index: 35; pointer-events: none;
+  display: flex; gap: 11px; align-items: center;
+  max-width: 300px; padding: 8px 12px 8px 8px;
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong); border-radius: 11px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.4);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.tip[hidden] { display: none; }
+.tip img { width: 40px; aspect-ratio: 2/3; border-radius: 3px; object-fit: cover; background: var(--night-3); flex: none; }
+.tip b { display: block; font-weight: 600; line-height: 1.2; }
+.tip span { display: block; color: var(--dust); font-size: 13px; margin-top: 2px; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(86px + var(--safe-b)); z-index: 60;
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  padding: 10px 16px; border-radius: 10px;
+  background: var(--vellum); color: #141a2b; font-weight: 600;
+  transition: opacity .25s, transform .25s var(--ease);
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+.notice { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+.notice h1 { font: 600 40px/1.1 var(--serif); margin: 0 0 12px; }
+.notice p { color: var(--dust); max-width: 48ch; margin: 0 auto; }
+
+/* ---------- small screens ---------- */
+@media (max-width: 1100px) { .timeline { display: none; } .tools { margin-left: auto; } }
+@media (max-width: 760px) {
+  .brand { top: 12px; left: 16px; max-width: calc(100vw - 32px); }
+  .brand__title { font-size: 34px; }
+  .brand__line { font-size: 14px; margin-top: 6px; }
+  .search { top: auto; bottom: calc(76px + var(--safe-b)); left: 12px; right: 12px; width: auto; }
+  .search__box { height: 48px; }
+  .search kbd { display: none; }
+  .results { position: absolute; bottom: 56px; left: 0; right: 0; margin: 0; max-height: 52vh; }
+  .banner { top: auto; bottom: calc(136px + var(--safe-b)); }
+  .bottombar { left: 12px; right: 12px; bottom: calc(12px + var(--safe-b)); }
+  .dock { flex: 1; justify-content: space-between; padding: 4px; }
+  .dock button { flex: 1; flex-direction: column; gap: 2px; height: 50px; padding: 0 2px; font-size: 12px; justify-content: center; }
+  .dock button .dock__label-long { display: none; }
+  .dock__badge { position: absolute; top: 4px; right: calc(50% - 22px); }
+  .tools { position: fixed; top: 76px; bottom: auto; right: 12px; flex-direction: column; padding: 4px; }
+  .tools button { width: 40px; height: 40px; }
+  .panel { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: min(62vh, 640px); border-radius: 20px 20px 0 0; transform: translateY(calc(100% + 20px)); padding-bottom: var(--safe-b); }
+  .panel.is-tall { height: calc(100vh - 24px); height: calc(100dvh - 24px); }
+  .panel__grip { display: block; width: 100%; height: 22px; flex: none; position: relative; touch-action: none; cursor: grab; }
+  .panel__grip::after { content: ""; position: absolute; left: 50%; top: 9px; width: 42px; height: 4px; margin-left: -21px; border-radius: 2px; background: rgba(241,232,212,.3); }
+  .panel__close { top: 14px; }
+  .film__head { padding: 70px 18px 0; gap: 14px; }
+  .film__poster { width: 92px; }
+  .film__title { font-size: 29px; }
+  .film__facts, .film__credit, .film__tagline, .film__overview, .film__actions, .section, .attribution { margin-left: 18px; margin-right: 18px; }
+  .drawer__body { padding: 6px 18px 28px; }
+  .kv { grid-template-columns: 96px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+}
+</style>
+</head>
+<body class="intro">
+<div class="stars" id="stars" aria-hidden="true"></div>
+<canvas id="map" role="img" aria-label="Map of the films. Similar films sit close together. Use search or Browse to reach any film with the keyboard."></canvas>
+<div class="veil" aria-hidden="true"></div>
+
+<header class="brand">
+  <h1 class="brand__title" id="brand-title">Lumière</h1>
+  <p class="brand__line" id="brand-line"></p>
+</header>
+
+<div class="search" role="search">
+  <label class="search__box">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    <span class="sr">Search films, people and themes</span>
+    <input id="q" type="search" placeholder="Search films, people, themes" autocomplete="off" spellcheck="false" enterkeyhint="search" aria-controls="results" aria-expanded="false" aria-autocomplete="list">
+    <kbd aria-hidden="true">/</kbd>
+  </label>
+  <div id="results" class="results" role="listbox" aria-label="Search results" hidden></div>
+</div>
+
+<div id="banner" class="banner" role="status" hidden></div>
+
+<div class="bottombar">
+<nav class="dock" aria-label="Panels">
+  <button type="button" data-tab="regions" aria-pressed="false">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4"/><circle cx="12" cy="12" r="1.6"/></svg>
+    <span>Regions</span>
+  </button>
+  <button type="button" data-tab="filters" aria-pressed="false">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    <span>Filters</span><span class="dock__badge" id="filter-badge" hidden></span>
+  </button>
+  <button type="button" data-tab="browse" aria-pressed="false">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="9" rx="1"/><rect x="13.5" y="4" width="6.5" height="9" rx="1"/><path d="M4 17h6.5M13.5 17H20M4 20.5h6.5M13.5 20.5H20"/></svg>
+    <span>Browse</span>
+  </button>
+  <button type="button" data-tab="collection" aria-pressed="false">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M10 20V4M15 20v-7M20 20V8"/></svg>
+    <span><span class="dock__label-long">The </span>Collection</span>
+  </button>
+  <button type="button" data-tab="about" aria-pressed="false">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.1"/></svg>
+    <span>About</span>
+  </button>
+</nav>
+
+<div class="timeline" id="timeline" aria-label="Years">
+  <div class="years" id="years-main"></div>
+</div>
+
+<div class="tools" role="group" aria-label="Map controls">
+  <button type="button" id="shuffle" title="Show me a random film (R)" aria-label="Show me a random film">
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.7" cy="8.7" r=".9" fill="currentColor"/><circle cx="15.3" cy="15.3" r=".9" fill="currentColor"/><circle cx="15.3" cy="8.7" r=".9" fill="currentColor"/><circle cx="8.7" cy="15.3" r=".9" fill="currentColor"/><circle cx="12" cy="12" r=".9" fill="currentColor"/></svg>
+  </button>
+  <button type="button" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button type="button" id="zoom-out" title="Zoom out (−)" aria-label="Zoom out"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+  <button type="button" id="zoom-fit" title="Show the whole map (F)" aria-label="Show the whole map"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+</div>
+
+<aside id="drawer" class="panel drawer" aria-label="Explore" tabindex="-1">
+  <div class="panel__grip" data-grip></div>
+  <button type="button" class="panel__close" data-close="drawer" aria-label="Close panel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="drawer__tabs" role="tablist" aria-label="Explore">
+    <button type="button" class="drawer__tab" role="tab" data-tab="regions">Regions</button>
+    <button type="button" class="drawer__tab" role="tab" data-tab="filters">Filters</button>
+    <button type="button" class="drawer__tab" role="tab" data-tab="browse">Browse</button>
+    <button type="button" class="drawer__tab" role="tab" data-tab="collection">Collection</button>
+    <button type="button" class="drawer__tab" role="tab" data-tab="about">About</button>
+  </div>
+  <div class="panel__scroll" id="drawer-scroll"><div class="drawer__body" id="drawer-body"></div></div>
+</aside>
+
+<aside id="detail" class="panel detail" aria-label="Film details" tabindex="-1">
+  <div class="panel__grip" data-grip></div>
+  <button type="button" class="panel__close" data-close="detail" aria-label="Close film details"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="panel__scroll" id="detail-scroll"></div>
+</aside>
+
+<div id="tip" class="tip" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<noscript><div class="notice"><div><h1>This map needs JavaScript</h1><p>Turn JavaScript on for this page to explore the collection.</p></div></div></noscript>
+
+<script src="data/movies.js" charset="utf-8"></script>
+<script>
+(() => {
+  'use strict';
+
+  // ------------------------------------------------------------------ basics
+  const DATA = window.MOVIE_MAP_DATA;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+  const nf = new Intl.NumberFormat('en');
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const still = () => motionQuery.matches;
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('lumiere.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('lumiere.' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+
+  if (!DATA || !Array.isArray(DATA.films) || !DATA.films.length) {
+    document.body.classList.remove('intro');
+    document.body.insertAdjacentHTML('beforeend', '<div class="notice"><div><h1>The map has no data yet</h1><p>The file data/movies.js is missing or empty. Run update.cmd in the project folder to build it, then reload this page.</p></div></div>');
+    return;
+  }
+
+  const meta = DATA.meta || {};
+  const IMG = meta.images || 'https://image.tmdb.org/t/p/';
+  const img = (path, size) => (path ? IMG + size + path : '');
+
+  // ------------------------------------------------------------------ colour (OKLab)
+  const toLin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const toGamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+  function rgbToLab(r, g, b) {
+    r = toLin(r / 255); g = toLin(g / 255); b = toLin(b / 255);
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+  }
+  function labToRgb(lab) {
+    const [L, a, b] = lab;
+    const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+    const m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+    const s = Math.pow(L - 0.0894841775 * a - 1.291485548 * b, 3);
+    const out = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+    return out.map((c) => Math.round(clamp(toGamma(clamp(c, 0, 1)), 0, 1) * 255));
+  }
+  const hexToLab = (hex) => { const n = parseInt(hex.slice(1), 16); return rgbToLab((n >> 16) & 255, (n >> 8) & 255, n & 255); };
+  const rgbHex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+  const labHex = (lab) => rgbHex(labToRgb(lab));
+  const lch = (L, C, h) => [L, C * Math.cos(h * Math.PI / 180), C * Math.sin(h * Math.PI / 180)];
+  const mixLab = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+  const NEUTRAL = lch(0.74, 0.02, 250);
+  function ramp(stops, t) {
+    t = clamp(t, 0, 1) * (stops.length - 1);
+    const i = Math.min(stops.length - 2, Math.floor(t));
+    const a = stops[i], b = stops[i + 1], u = t - i;
+    let dh = b[2] - a[2];
+    if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
+    return lch(lerp(a[0], b[0], u), lerp(a[1], b[1], u), a[2] + dh * u);
+  }
+
+  // ------------------------------------------------------------------ data
+  const GENRES = meta.genres || [];
+  const LANGS = meta.languages || {};
+  const clusters = (DATA.clusters || []).map((c, i) => ({ ...c, i, lab: hexToLab(c.color), films: [] }));
+  const films = DATA.films.map((f, i) => ({
+    ...f, i, x: f.xy[0], y: f.xy[1],
+    gn: (f.g || []).map((g) => GENRES[g]).filter(Boolean),
+    year: f.y || null,
+    pass: true, alpha: 1, lab: NEUTRAL, sprite: null,
+  }));
+  const byId = new Map(films.map((f) => [f.id, f]));
+  const maxLogVotes = Math.max(1, ...films.map((f) => Math.log1p(f.vc || 0)));
+  const kwCount = new Map();
+  for (const f of films) {
+    f.nb = (f.n || []).map((id) => byId.get(id)).filter(Boolean);
+    f.weight = Math.log1p(f.vc || 0) / maxLogVotes;
+    f.home = f.m && f.m.length ? clusters[f.m[0][0]] : null;
+    if (f.home && f.m[0][1] >= 0.5) f.home.films.push(f);
+    for (const k of f.k || []) kwCount.set(k, (kwCount.get(k) || 0) + 1);
+  }
+  const years = films.map((f) => f.year).filter(Boolean);
+  const Y0 = Math.min(...years), Y1 = Math.max(...years);
+  const since = meta.since || '';
+  const isNew = (f) => !!(since && f.a && f.a > since);
+  const hasNew = films.some(isNew);
+
+  // world bounds
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+  for (const f of films) { bx0 = Math.min(bx0, f.x); bx1 = Math.max(bx1, f.x); by0 = Math.min(by0, f.y); by1 = Math.max(by1, f.y); }
+  const span = Math.max(bx1 - bx0, by1 - by0) || 1;
+
+  // ------------------------------------------------------------------ colour lenses
+  const langOrder = [...films.reduce((m, f) => m.set(f.l, (m.get(f.l) || 0) + 1), new Map())]
+    .sort((a, b) => b[1] - a[1]).map((e) => e[0]);
+  const LANG_HUES = [28, 330, 150, 210, 95, 265, 185, 0, 120, 300, 55, 235];
+  const langLab = new Map();
+  let hueIx = 0;
+  for (const code of langOrder) {
+    if (code === 'en') langLab.set(code, lch(0.8, 0.025, 250));
+    else if (hueIx < LANG_HUES.length) langLab.set(code, lch(hueIx % 2 ? 0.74 : 0.8, 0.14, LANG_HUES[hueIx++]));
+    else langLab.set(code, lch(0.6, 0.03, 250));
+  }
+  const DECADE_STOPS = [[0.58, 0.13, 300], [0.68, 0.14, 245], [0.77, 0.13, 190], [0.84, 0.14, 120], [0.88, 0.15, 85]];
+  const RATING_STOPS = [[0.55, 0.04, 255], [0.67, 0.09, 230], [0.8, 0.13, 160], [0.88, 0.15, 85]];
+  const LENSES = {
+    region: { name: 'Regions', lab: (f) => {
+      if (!f.m || !f.m.length) return NEUTRAL;
+      let L = 0, A = 0, B = 0, W = 0;
+      for (const [ci, w] of f.m) { const c = clusters[ci].lab; L += c[0] * w; A += c[1] * w; B += c[2] * w; W += w; }
+      return [L / W, A / W, B / W];
+    } },
+    decade: { name: 'Decade', lab: (f) => (f.year ? ramp(DECADE_STOPS, Math.pow((f.year - Y0) / Math.max(1, Y1 - Y0), 1.6)) : NEUTRAL) },
+    rating: { name: 'TMDB rating', lab: (f) => ((f.vc || 0) >= 25 ? ramp(RATING_STOPS, (f.va - 5.8) / 2.7) : lch(0.5, 0.01, 250)) },
+    language: { name: 'Language', lab: (f) => langLab.get(f.l) || NEUTRAL },
+  };
+  let lens = store.get('lens', 'region');
+  if (!LENSES[lens]) lens = 'region';
+
+  // ------------------------------------------------------------------ canvas and camera
+  const canvas = $('#map');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, dpr = 1, kFit = 1;
+  const cam = { x: (bx0 + bx1) / 2, y: (by0 + by1) / 2, k: 1 };
+  const isNarrow = () => W <= 760;
+
+  function viewInsets() {
+    // the part of the screen not covered by open panels
+    const ins = { l: 0, r: 0, t: 0, b: 0 };
+    if (isNarrow()) {
+      if (ui.detailOpen || ui.drawerOpen) ins.b = Math.min(H * 0.62, 640) + 10;
+      ins.t = 70; ins.b = Math.max(ins.b, 140);
+    } else {
+      if (ui.detailOpen) ins.r = Math.min(460, W - 24) + 12;
+      if (ui.drawerOpen) ins.l = Math.min(400, W - 24) + 12;
+      ins.t = 90; ins.b = 80;
+    }
+    return ins;
+  }
+  function fitScale(x0, y0, x1, y1, ins) {
+    const w = Math.max(1, W - ins.l - ins.r - 40), h = Math.max(1, H - ins.t - ins.b - 30);
+    return Math.min(w / Math.max(1e-6, x1 - x0), h / Math.max(1e-6, y1 - y0));
+  }
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const first = W === 0;
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const ins = isNarrow() ? { l: 0, r: 0, t: 90, b: 150 } : { l: 0, r: 0, t: 110, b: 90 };
+    kFit = fitScale(bx0, by0, bx1, by1, ins);
+    if (first) homeCamera(false);
+    buildNebulaCanvas();
+    requestDraw();
+  }
+  const sx = (x) => (x - cam.x) * cam.k + W / 2;
+  const sy = (y) => (y - cam.y) * cam.k + H / 2;
+  const wx = (px) => (px - W / 2) / cam.k + cam.x;
+  const wy = (py) => (py - H / 2) / cam.k + cam.y;
+  const zoomLevel = () => cam.k / kFit;
+
+  function homeCamera(animate = true) {
+    const ins = viewInsets();
+    const k = fitScale(bx0, by0, bx1, by1, ins);
+    const cx = (bx0 + bx1) / 2 + (ins.r - ins.l) / 2 / k;
+    const cy = (by0 + by1) / 2 + (ins.b - ins.t) / 2 / k;
+    flyTo(cx, cy, k, animate ? 900 : 0);
+  }
+  function fitFilms(list, animate = true, maxZoom = 7) {
+    if (!list.length) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const f of list) { x0 = Math.min(x0, f.x); x1 = Math.max(x1, f.x); y0 = Math.min(y0, f.y); y1 = Math.max(y1, f.y); }
+    const pad = span * 0.03;
+    x0 -= pad; x1 += pad; y0 -= pad; y1 += pad;
+    const ins = viewInsets();
+    const k = clamp(fitScale(x0, y0, x1, y1, ins), kFit * 0.8, kFit * maxZoom);
+    const cx = (x0 + x1) / 2 + (ins.r - ins.l) / 2 / k;
+    const cy = (y0 + y1) / 2 + (ins.b - ins.t) / 2 / k;
+    flyTo(cx, cy, k, animate ? 1100 : 0);
+  }
+
+  // camera animation: zooms out a little on long trips so the eye can follow
+  let flight = null;
+  function flyTo(x, y, k, ms = 1000) {
+    k = clamp(k, kFit * 0.5, kFit * 60);
+    if (still() || ms === 0) { cam.x = x; cam.y = y; cam.k = k; flight = null; requestDraw(); return; }
+    const from = { ...cam };
+    const dist = Math.hypot(x - from.x, y - from.y) * Math.min(from.k, k);
+    const dip = clamp(dist / Math.max(W, H) - 0.4, 0, 1.2);
+    flight = { from, to: { x, y, k }, t0: performance.now(), ms: ms * (1 + dip * 0.25), dip };
+    requestDraw();
+  }
+  function stepFlight(now) {
+    if (!flight) return false;
+    const t = clamp((now - flight.t0) / flight.ms, 0, 1);
+    const e = easeInOut(t);
+    const { from, to, dip } = flight;
+    cam.x = lerp(from.x, to.x, e);
+    cam.y = lerp(from.y, to.y, e);
+    const lk = lerp(Math.log(from.k), Math.log(to.k), e) - dip * 0.9 * Math.sin(Math.PI * t);
+    cam.k = Math.exp(lk);
+    if (t >= 1) flight = null;
+    return true;
+  }
+  function zoomAt(px, py, factor) {
+    const k = clamp(cam.k * factor, kFit * 0.5, kFit * 60);
+    const x = wx(px), y = wy(py);
+    cam.k = k;
+    cam.x = x - (px - W / 2) / k;
+    cam.y = y - (py - H / 2) / k;
+    flight = null;
+    requestDraw();
+  }
+
+  // ------------------------------------------------------------------ the coloured field behind the films
+  let nebula = null; // { canvas, x0, y0, x1, y1 }
+  function buildNebulaCanvas() {
+    const pad = span * 0.16;
+    const x0 = bx0 - pad, y0 = by0 - pad, x1 = bx1 + pad, y1 = by1 + pad;
+    const G = isNarrow() ? 220 : 300;
+    const gw = Math.round((x1 - x0) >= (y1 - y0) ? G : G * (x1 - x0) / (y1 - y0));
+    const gh = Math.round((y1 - y0) > (x1 - x0) ? G : G * (y1 - y0) / (x1 - x0));
+    const cell = (x1 - x0) / gw;
+    const sigmaCells = (span * 0.042) / cell;
+    const aL = new Float32Array(gw * gh), aA = new Float32Array(gw * gh), aB = new Float32Array(gw * gh), aW = new Float32Array(gw * gh);
+    // Splat every film onto the grid (bilinear), then blur: three box blurs equal a Gaussian
+    // to within a few percent, at a tiny fraction of the cost of a per-film kernel.
+    for (const f of films) {
+      const gx = (f.x - x0) / cell - 0.5, gy = (f.y - y0) / cell - 0.5;
+      const ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy;
+      const [L, A, B] = f.lab;
+      const s = 0.55 + 0.45 * (f.m && f.m.length ? f.m[0][1] : 0.3);
+      for (const [dx, dy, w] of [[0, 0, (1 - fx) * (1 - fy)], [1, 0, fx * (1 - fy)], [0, 1, (1 - fx) * fy], [1, 1, fx * fy]]) {
+        const x = ix + dx, y = iy + dy;
+        if (x < 0 || y < 0 || x >= gw || y >= gh) continue;
+        const j = y * gw + x, v = s * w;
+        aL[j] += L * v; aA[j] += A * v; aB[j] += B * v; aW[j] += v;
+      }
+    }
+    const r = Math.max(1, Math.round((Math.sqrt(4 * sigmaCells * sigmaCells + 1) - 1) / 2));
+    const tmp = new Float32Array(gw * gh);
+    for (const ch of [aL, aA, aB, aW]) {
+      for (let pass = 0; pass < 3; pass++) {
+        boxBlur(ch, tmp, gh, gw, r, 1, gw);   // along each row
+        boxBlur(tmp, ch, gw, gh, r, gw, 1);   // along each column
+      }
+    }
+    const norm = 2 * Math.PI * sigmaCells * sigmaCells; // keep densities on the same scale as the old kernel sum
+    for (let j = 0; j < aW.length; j++) { aL[j] *= norm; aA[j] *= norm; aB[j] *= norm; aW[j] *= norm; }
+    const sorted = Array.from(aW).filter((v) => v > 0.01).sort((a, b) => a - b);
+    const ref = sorted[Math.floor(sorted.length * 0.9)] || 1;
+    const c = document.createElement('canvas');
+    c.width = gw; c.height = gh;
+    const g = c.getContext('2d');
+    const im = g.createImageData(gw, gh);
+    for (let j = 0; j < gw * gh; j++) {
+      const w = aW[j];
+      if (w <= 0.0005) continue;
+      const lab = [aL[j] / w, aA[j] / w, aB[j] / w];
+      lab[0] = 0.26 + lab[0] * 0.34;               // a darker, deeper version of the film colours
+      lab[1] *= 1.08; lab[2] *= 1.08;
+      const rgb = labToRgb(lab);
+      const alpha = (1 - Math.exp(-1.4 * w / ref)) * 0.7;
+      im.data[j * 4] = rgb[0]; im.data[j * 4 + 1] = rgb[1]; im.data[j * 4 + 2] = rgb[2];
+      im.data[j * 4 + 3] = Math.round(alpha * 255);
+    }
+    g.putImageData(im, 0, 0);
+    // upscale once, softly, so it can be drawn every frame without cost
+    const up = document.createElement('canvas');
+    up.width = gw * 3; up.height = gh * 3;
+    const u = up.getContext('2d');
+    u.imageSmoothingEnabled = true; u.imageSmoothingQuality = 'high';
+    if ('filter' in u) u.filter = 'blur(4px)';
+    u.drawImage(c, 0, 0, up.width, up.height);
+    nebula = { canvas: up, x0, y0, x1, y1 };
+  }
+
+  // One box-blur pass along lines of a grid stored row-major. `lines` lines of `len` cells;
+  // `step` moves along a line, `stride` moves to the next line. Zero beyond the edges.
+  function boxBlur(src, dst, lines, len, r, step, stride) {
+    const inv = 1 / (2 * r + 1);
+    for (let l = 0; l < lines; l++) {
+      const base = l * stride;
+      let acc = 0;
+      for (let i = 0; i <= r && i < len; i++) acc += src[base + i * step];
+      for (let i = 0; i < len; i++) {
+        dst[base + i * step] = acc * inv;
+        const add = i + r + 1, sub = i - r;
+        if (add < len) acc += src[base + add * step];
+        if (sub >= 0) acc -= src[base + sub * step];
+      }
+    }
+  }
+
+  // distant stars, drawn once into a tile
+  const starTile = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 640;
+    const g = c.getContext('2d');
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 420; i++) {
+      const r = rnd() < 0.92 ? 0.5 + rnd() * 0.6 : 0.9 + rnd() * 0.8;
+      g.globalAlpha = 0.12 + rnd() * 0.42;
+      g.fillStyle = rnd() < 0.15 ? '#ffe9c4' : '#dfe6ff';
+      g.beginPath(); g.arc(rnd() * 640, rnd() * 640, r, 0, Math.PI * 2); g.fill();
+    }
+    return c;
+  })();
+  const starsEl = $('#stars');
+  starsEl.style.backgroundImage = `url(${starTile.toDataURL('image/png')})`;
+
+  // glowing points: one small sprite per colour
+  const spriteCache = new Map();
+  function spriteFor(lab) {
+    const rgb = labToRgb(lab);
+    const key = rgb.map((v) => v >> 3).join(',');
+    let s = spriteCache.get(key);
+    if (s) return s;
+    s = document.createElement('canvas');
+    s.width = s.height = 64;
+    const g = s.getContext('2d');
+    const core = labToRgb(mixLab(lab, [1, 0, 0], 0.55));
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, `rgba(${core},1)`);
+    grad.addColorStop(0.14, `rgba(${core},1)`);
+    grad.addColorStop(0.24, `rgba(${rgb},0.85)`);
+    grad.addColorStop(0.5, `rgba(${rgb},0.22)`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    spriteCache.set(key, s);
+    return s;
+  }
+  function applyLens(name) {
+    lens = name;
+    store.set('lens', name);
+    for (const f of films) { f.lab = LENSES[name].lab(f); f.hex = labHex(f.lab); f.sprite = spriteFor(f.lab); }
+    if (W) buildNebulaCanvas();
+    requestDraw();
+  }
+
+  // posters on the map when zoomed in
+  const posters = new Map();
+  function posterImage(f, size) {
+    if (!f.p) return null;
+    const key = f.id + size;
+    let p = posters.get(key);
+    if (!p) {
+      p = { img: new Image(), ok: false };
+      p.img.decoding = 'async';
+      p.img.referrerPolicy = 'no-referrer';
+      p.img.onload = () => { p.ok = true; requestDraw(); };
+      p.img.src = img(f.p, size);
+      posters.set(key, p);
+    }
+    return p.ok ? p.img : null;
+  }
+
+  // ------------------------------------------------------------------ spatial index for hover and taps
+  const CELL = span / 60;
+  const grid = new Map();
+  for (const f of films) {
+    const key = Math.floor(f.x / CELL) + ',' + Math.floor(f.y / CELL);
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(f);
+  }
+  function filmAt(px, py) {
+    const x = wx(px), y = wy(py);
+    const pr = posterSize();
+    const r = Math.max(pr ? pr * 0.55 : 0, 13) / cam.k;
+    const gx0 = Math.floor((x - r) / CELL), gx1 = Math.floor((x + r) / CELL);
+    const gy0 = Math.floor((y - r) / CELL), gy1 = Math.floor((y + r) / CELL);
+    let best = null, bd = Infinity;
+    for (let gx = gx0; gx <= gx1; gx++) for (let gy = gy0; gy <= gy1; gy++) {
+      for (const f of grid.get(gx + ',' + gy) || []) {
+        if (f.alpha < 0.2) continue;
+        const d = Math.hypot(f.x - x, f.y - y) - (f.pass ? 0 : r * 0.5);
+        if (d < r && d < bd) { bd = d; best = f; }
+      }
+    }
+    return best;
+  }
+
+  // ------------------------------------------------------------------ state
+  const ui = { detailOpen: false, drawerOpen: false, tab: 'regions' };
+  const state = {
+    selected: null, selT0: 0, hover: null,
+    spot: null,          // { kind: 'person'|'theme'|'region', label, films: Set, ordered: [], color }
+    path: null,          // { films: [], t0 }
+    pathFrom: null,      // waiting for a destination
+  };
+  const filters = { genres: new Set(), langs: new Set(), y0: Y0, y1: Y1, minRating: 0, runtime: 'any', onlyNew: false };
+  let passCount = films.length;
+
+  function passes(f) {
+    for (const g of filters.genres) if (!f.gn.includes(g)) return false;
+    if (filters.langs.size && !filters.langs.has(f.l)) return false;
+    if (f.year && (f.year < filters.y0 || f.year > filters.y1)) return false;
+    if (filters.minRating && ((f.vc || 0) < 25 || f.va < filters.minRating)) return false;
+    if (filters.runtime === 'short' && !(f.r && f.r < 100)) return false;
+    if (filters.runtime === 'mid' && !(f.r >= 100 && f.r <= 140)) return false;
+    if (filters.runtime === 'long' && !(f.r > 140)) return false;
+    if (filters.onlyNew && !isNew(f)) return false;
+    return true;
+  }
+  const activeFilterCount = () => filters.genres.size + filters.langs.size + (filters.y0 > Y0 || filters.y1 < Y1 ? 1 : 0)
+    + (filters.minRating ? 1 : 0) + (filters.runtime !== 'any' ? 1 : 0) + (filters.onlyNew ? 1 : 0);
+  function applyFilters() {
+    passCount = 0;
+    for (const f of films) { f.pass = passes(f); if (f.pass) passCount++; }
+    const n = activeFilterCount();
+    const badge = $('#filter-badge');
+    badge.hidden = !n; badge.textContent = n;
+    drawYears();
+    renderBanner();
+    if (ui.drawerOpen && ui.tab === 'browse') renderDrawer();
+    if (ui.drawerOpen && ui.tab === 'filters') updateFilterCount();
+    requestDraw();
+  }
+
+  // ------------------------------------------------------------------ drawing
+  let raf = 0;
+  function requestDraw() { if (!raf) raf = requestAnimationFrame(frame); }
+  let introT0 = 0;
+  const INTRO_MS = 1700;
+
+  function posterSize() {
+    const z = cam.k;
+    const s = clamp(z * 7.2, 0, 150);
+    return s >= 26 ? s : 0;
+  }
+
+  function frame(now) {
+    raf = 0;
+    let busy = stepFlight(now);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    // distant stars drift a little slower than the films (moved by the compositor, not redrawn)
+    const px = (((cam.x * cam.k * 0.06) % 640) + 640) % 640, py = (((cam.y * cam.k * 0.06) % 640) + 640) % 640;
+    starsEl.style.transform = `translate3d(${-px.toFixed(1)}px, ${-py.toFixed(1)}px, 0)`;
+
+    const intro = introT0 ? clamp((now - introT0) / INTRO_MS, 0, 1) : 1;
+    if (intro < 1) busy = true;
+
+    // coloured field
+    if (nebula) {
+      ctx.globalAlpha = smooth(0, 0.7, intro) * (state.selected || state.spot || state.path ? 0.62 : 1);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(nebula.canvas, sx(nebula.x0), sy(nebula.y0), (nebula.x1 - nebula.x0) * cam.k, (nebula.y1 - nebula.y0) * cam.k);
+      ctx.globalAlpha = 1;
+    }
+
+    const focus = focusSet();
+    const z = zoomLevel();
+    const pSize = posterSize();
+    const posterAlpha = smooth(26, 46, pSize);
+    const dotR = (4.2 + 2.2 * clamp(Math.log2(Math.max(1, z)), 0, 3)) * (W < 500 ? 0.9 : 1);
+    const cx0 = (bx0 + bx1) / 2, cy0 = (by0 + by1) / 2;
+
+    // alpha per film
+    for (const f of films) {
+      let a = f.pass ? 1 : 0.1;
+      if (focus && !focus.has(f)) a *= 0.2;
+      if (intro < 1) {
+        const d = Math.hypot(f.x - cx0, f.y - cy0) / (span * 0.7);
+        a *= smooth(d * 0.55, d * 0.55 + 0.35, intro);
+      }
+      f.alpha = a;
+    }
+
+    drawLinks(now, focus);
+
+    // films
+    const m = 60;
+    for (const f of films) {
+      if (f.alpha < 0.01) continue;
+      const x = sx(f.x), y = sy(f.y);
+      if (x < -m || y < -m || x > W + m || y > H + m) continue;
+      const r = dotR * (0.72 + 0.55 * f.weight) * (f === state.selected ? 1.35 : 1);
+      ctx.globalAlpha = f.alpha * (1 - posterAlpha * 0.85);
+      ctx.drawImage(f.sprite, x - r * 2, y - r * 2, r * 4, r * 4);
+    }
+    ctx.globalAlpha = 1;
+    if (posterAlpha > 0) drawPosters(pSize, posterAlpha);
+    drawRings(now);
+    drawLabels(z, focus, intro);
+    if (state.selected || state.path) busy = busy || (now - (state.path ? state.path.t0 : state.selT0) < 1400);
+    if (busy) requestDraw();
+  }
+
+  function focusSet() {
+    if (state.path) return new Set(state.path.films);
+    if (state.spot) return state.spot.films;
+    if (state.selected) return new Set([state.selected, ...state.selected.nb]);
+    return null;
+  }
+
+  function line(a, b, color, alpha, width, progress = 1) {
+    const x0 = sx(a.x), y0 = sy(a.y);
+    const x1 = lerp(x0, sx(b.x), progress), y1 = lerp(y0, sy(b.y), progress);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  }
+
+  function drawLinks(now, focus) {
+    ctx.lineCap = 'round';
+    if (state.path) {
+      const ps = state.path.films;
+      const t = still() ? 1 : clamp((now - state.path.t0) / 1300, 0, 1) * (ps.length - 1);
+      ctx.shadowColor = 'rgba(216,180,106,.8)'; ctx.shadowBlur = 10;
+      for (let i = 0; i < ps.length - 1; i++) {
+        const p = clamp(t - i, 0, 1);
+        if (p > 0) line(ps[i], ps[i + 1], '#d8b46a', 0.95, 2.2, easeOut(p));
+      }
+      ctx.shadowBlur = 0;
+    } else if (state.spot && state.spot.ordered.length > 1) {
+      const ps = state.spot.ordered;
+      ctx.setLineDash([2, 5]);
+      for (let i = 0; i < ps.length - 1; i++) line(ps[i], ps[i + 1], state.spot.color || '#d8b46a', 0.55, 1.3);
+      ctx.setLineDash([]);
+    }
+    if (state.selected && !state.path) {
+      const s = state.selected;
+      const t = still() ? 99 : (now - state.selT0) / 650;
+      for (let i = s.nb.length - 1; i >= 0; i--) {
+        const n = s.nb[i];
+        const p = clamp(t - i * 0.035, 0, 1);
+        if (p <= 0) continue;
+        const strength = (s.s[i] || 0) / 100;
+        const grad = ctx.createLinearGradient(sx(s.x), sy(s.y), sx(n.x), sy(n.y));
+        grad.addColorStop(0, s.hex); grad.addColorStop(1, n.hex);
+        line(s, n, grad, 0.25 + 0.5 * strength, i < 5 ? 1.6 : 1, easeOut(p));
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPosters(size, alpha) {
+    const h = size, w = size * 2 / 3;
+    const big = h * dpr > 140 ? 'w185' : 'w92';
+    const list = films.filter((f) => f.alpha > 0.05 && sx(f.x) > -w && sx(f.x) < W + w && sy(f.y) > -h && sy(f.y) < H + h);
+    list.sort((a, b) => (a === state.selected) - (b === state.selected) || a.weight - b.weight);
+    for (const f of list) {
+      const x = sx(f.x) - w / 2, y = sy(f.y) - h / 2;
+      ctx.globalAlpha = alpha * f.alpha;
+      const im = posterImage(f, big) || (big !== 'w92' ? posterImage(f, 'w92') : null);
+      ctx.fillStyle = 'rgba(12,20,40,.9)';
+      roundRect(x, y, w, h, 3); ctx.fill();
+      if (im) {
+        ctx.save(); roundRect(x, y, w, h, 3); ctx.clip();
+        ctx.drawImage(im, x, y, w, h);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = 'rgba(241,232,212,.75)';
+        ctx.font = `italic 500 ${clamp(w / 7, 9, 15)}px Cormorant, Georgia, serif`;
+        wrapText(f.t, x + w / 2, y + h / 2, w - 10, clamp(w / 6.5, 10, 17));
+      }
+      ctx.strokeStyle = f.hex; ctx.lineWidth = f === state.selected ? 2.5 : 1;
+      ctx.globalAlpha = alpha * f.alpha * (f === state.selected ? 1 : 0.7);
+      roundRect(x, y, w, h, 3); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function wrapText(text, cx, cy, maxW, lh) {
+    const words = String(text).split(/\s+/); const lines = []; let cur = '';
+    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
+    if (cur) lines.push(cur);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const top = cy - (lines.length - 1) * lh / 2;
+    lines.slice(0, 5).forEach((l, i) => ctx.fillText(l, cx, top + i * lh));
+  }
+
+  function drawRings(now) {
+    const pulse = still() ? 0 : Math.sin(now / 420) * 1.5;
+    const ring = (f, r, color, width, alpha) => {
+      ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = width;
+      ctx.beginPath(); ctx.arc(sx(f.x), sy(f.y), r, 0, Math.PI * 2); ctx.stroke();
+    };
+    const ps = smooth(26, 46, posterSize()) > 0.5;
+    if (state.hover && state.hover !== state.selected && !ps) ring(state.hover, 9, '#f1e8d4', 1.2, 0.8);
+    if (state.selected && !ps) {
+      ring(state.selected, 13 + pulse, state.selected.hex, 1.5, 0.95);
+      ring(state.selected, 19 + pulse * 1.5, state.selected.hex, 1, 0.35);
+      if (!still()) requestDraw();
+    }
+    if (state.pathFrom && !ps) ring(state.pathFrom, 14 + pulse, '#d8b46a', 1.5, 0.9);
+    ctx.globalAlpha = 1;
+  }
+
+  // labels: region names when zoomed out, film titles when zoomed in
+  const occupied = [];
+  const hits = (r) => occupied.some((o) => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y);
+  function drawLabels(z, focus, intro) {
+    occupied.length = 0;
+    ctx.textBaseline = 'middle';
+    // UI that sits over the map should not be covered
+    const ins = viewInsets();
+    occupied.push({ x: 0, y: 0, w: isNarrow() ? W : 520, h: isNarrow() ? 60 : 96 });
+    if (ins.r) occupied.push({ x: W - ins.r, y: 0, w: ins.r, h: H });
+    if (ins.l) occupied.push({ x: 0, y: 0, w: ins.l, h: H });
+
+    // films that must be named: the selection and its nearest, a path, a spotlight
+    const named = [];
+    if (state.path) named.push(...state.path.films);
+    else if (state.selected) named.push(state.selected, ...state.selected.nb.slice(0, 12));
+    else if (state.spot && state.spot.films.size <= 40) named.push(...state.spot.films);
+    if (state.hover && !named.includes(state.hover)) named.unshift(state.hover);
+
+    const regionAlpha = (1 - smooth(2.2, 4.2, z)) * smooth(0.25, 0.85, intro) * (focus ? 0.35 : 1);
+    const titleAlpha = smooth(2.2, 3.4, z);
+
+    const labelled = new Set();
+    for (const f of named) if (!labelled.has(f) && placeFilmLabel(f, 1, true)) labelled.add(f);
+
+    if (regionAlpha > 0.02) {
+      const order = [...clusters].sort((a, b) => b.n - a.n);
+      for (const c of order) {
+        const sp = regionSprite(c);
+        const x = sx(c.x), y = sy(c.y);
+        const r = { x: x - sp.w / 2 + 8, y: y - sp.h / 2 + 8, w: sp.w - 16, h: sp.h - 16 };
+        if (r.x < 4 || r.x + r.w > W - 4 || hits(r)) continue;
+        occupied.push(r);
+        ctx.globalAlpha = regionAlpha;
+        ctx.drawImage(sp.canvas, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
+      }
+    }
+    if (titleAlpha > 0.02) {
+      const vis = films.filter((f) => f.pass && f.alpha > 0.5 && !labelled.has(f) && sx(f.x) > 0 && sx(f.x) < W && sy(f.y) > 0 && sy(f.y) < H)
+        .sort((a, b) => b.weight - a.weight).slice(0, 220);
+      for (const f of vis) placeFilmLabel(f, titleAlpha, false);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Region names are drawn once (with their soft halo) and reused every frame.
+  const regionSprites = new Map();
+  function regionSprite(c) {
+    const scale = clamp(W / 1100, 0.68, 1);
+    const size = clamp(15 + Math.sqrt(c.n) * 1.2, 16, 27) * scale;
+    const key = `${c.id}|${size.toFixed(1)}|${dpr}|${document.fonts && document.fonts.status}`;
+    let sp = regionSprites.get(c.id);
+    if (sp && sp.key === key) return sp;
+    const font = `italic 600 ${size}px Cormorant, Georgia, serif`;
+    ctx.font = font;
+    const w = Math.ceil(ctx.measureText(c.name).width) + 32, h = Math.ceil(size * 1.4) + 24;
+    const canvasEl = document.createElement('canvas');
+    canvasEl.width = Math.ceil(w * dpr); canvasEl.height = Math.ceil(h * dpr);
+    const g = canvasEl.getContext('2d');
+    g.scale(dpr, dpr);
+    g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(5,9,20,.95)'; g.shadowBlur = 12;
+    g.fillStyle = labHex(mixLab(c.lab, [0.97, 0, 0], 0.55));
+    g.fillText(c.name, w / 2, h / 2);
+    sp = { key, canvas: canvasEl, w, h };
+    regionSprites.set(c.id, sp);
+    return sp;
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { regionSprites.clear(); requestDraw(); });
+
+  function placeFilmLabel(f, alpha, force) {
+    const ps = smooth(26, 46, posterSize()) > 0.5 ? posterSize() : 0;
+    const size = 13;
+    ctx.font = `600 ${size}px "Sofia Sans Semi Condensed", "Segoe UI", sans-serif`;
+    const rank = state.selected && !state.path ? state.selected.nb.indexOf(f) : -1;
+    const text = (rank >= 0 ? (rank + 1) + '  ' : '') + f.t;
+    const w = ctx.measureText(text).width;
+    const x = sx(f.x), y = sy(f.y);
+    const off = ps ? ps / 2 + 6 : 9;
+    const spots = ps ? [[x - w / 2, y + off + 7, 'left']] : [[x + off, y, 'left'], [x - off - w, y, 'left'], [x - w / 2, y - off - 4, 'left'], [x - w / 2, y + off + 4, 'left']];
+    for (const [lx, ly] of spots) {
+      const r = { x: lx - 3, y: ly - size * 0.7, w: w + 6, h: size * 1.4 };
+      if (r.x < 2 || r.x + r.w > W - 2 || r.y < 2 || r.y + r.h > H - 2) continue;
+      if (hits(r) && !(force && f === state.selected)) continue;
+      occupied.push(r);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = alpha * (f.pass ? 1 : 0.5);
+      if (ps) { ctx.fillStyle = 'rgba(8,13,27,.78)'; roundRect(r.x - 2, r.y + 1, r.w + 4, r.h - 2, 5); ctx.fill(); }
+      else {
+        ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(5,9,20,.82)';
+        ctx.strokeText(text, lx, ly);
+      }
+      ctx.fillStyle = f === state.selected ? '#ffffff' : (force ? '#f1e8d4' : 'rgba(241,232,212,.86)');
+      ctx.fillText(text, lx, ly);
+      return true;
+    }
+    return false;
+  }
+
+  // ------------------------------------------------------------------ pointer and keyboard
+  const pointers = new Map();
+  let drag = null, pinch = null, inertia = null, lastTap = 0;
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    flight = null; inertia = null;
+    if (pointers.size === 1) {
+      drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, t: performance.now(), moved: 0, vx: 0, vy: 0, lx: e.clientX, ly: e.clientY, lt: performance.now() };
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: cam.k, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+      drag = null;
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = pointers.get(e.pointerId);
+    if (p) { p.x = e.clientX; p.y = e.clientY; }
+    if (pinch && pointers.size >= 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      zoomAt(mx, my, (pinch.k * d / pinch.d) / cam.k);
+      cam.x -= (mx - pinch.mx) / cam.k; cam.y -= (my - pinch.my) / cam.k;
+      pinch.mx = mx; pinch.my = my;
+      requestDraw();
+      return;
+    }
+    if (drag) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
+      if (drag.moved > 4) {
+        canvas.classList.add('is-dragging');
+        cam.x = drag.cx - dx / cam.k; cam.y = drag.cy - dy / cam.k;
+        const now = performance.now(), dt = Math.max(1, now - drag.lt);
+        drag.vx = (e.clientX - drag.lx) / dt; drag.vy = (e.clientY - drag.ly) / dt;
+        drag.lx = e.clientX; drag.ly = e.clientY; drag.lt = now;
+        hideTip();
+        requestDraw();
+      }
+      return;
+    }
+    if (e.pointerType === 'mouse') hover(filmAt(e.clientX, e.clientY), e.clientX, e.clientY);
+  });
+  const endPointer = (e) => {
+    pointers.delete(e.pointerId);
+    canvas.classList.remove('is-dragging');
+    if (pinch && pointers.size < 2) { pinch = null; drag = null; return; }
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (e.type === 'pointercancel') return;
+    if (d.moved <= 6 && performance.now() - d.t < 600) {
+      const f = filmAt(e.clientX, e.clientY);
+      const now = performance.now();
+      if (!f && e.pointerType !== 'mouse' && now - lastTap < 320) { zoomAt(e.clientX, e.clientY, 2); lastTap = 0; return; }
+      lastTap = now;
+      if (f) choose(f);
+      else if (state.pathFrom) { state.pathFrom = null; renderBanner(); requestDraw(); }
+      else if (state.selected) closeDetail();
+    } else if (!still() && Math.hypot(d.vx, d.vy) > 0.25) {
+      inertia = { vx: d.vx, vy: d.vy, t: performance.now() };
+      requestAnimationFrame(glide);
+    }
+  };
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', () => { if (!drag) hover(null); });
+  function glide(now) {
+    if (!inertia) return;
+    const dt = Math.min(32, now - inertia.t); inertia.t = now;
+    cam.x -= inertia.vx * dt / cam.k; cam.y -= inertia.vy * dt / cam.k;
+    const decay = Math.pow(0.94, dt / 16);
+    inertia.vx *= decay; inertia.vy *= decay;
+    requestDraw();
+    if (Math.hypot(inertia.vx, inertia.vy) > 0.02) requestAnimationFrame(glide); else inertia = null;
+  }
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+    const dy = e.deltaY * unit;
+    if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.2 && e.deltaMode === 0) {
+      cam.x += e.deltaX / cam.k; requestDraw(); return; // horizontal trackpad scroll pans
+    }
+    zoomAt(e.clientX, e.clientY, Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0018)));
+    hideTip();
+  }, { passive: false });
+  canvas.addEventListener('dblclick', (e) => { e.preventDefault(); zoomAt(e.clientX, e.clientY, 2.2); });
+
+  // hover tooltip
+  const tip = $('#tip');
+  function hover(f, x, y) {
+    if (state.hover !== f) { state.hover = f; requestDraw(); }
+    canvas.classList.toggle('is-pointing', !!f);
+    if (!f) return hideTip();
+    const who = f.dir && f.dir.length ? f.dir[0] : '';
+    tip.innerHTML = `${f.p ? `<img alt="" src="${img(f.p, 'w92')}">` : ''}<div><b>${esc(f.t)}</b><span>${esc([f.year, who].filter(Boolean).join(', '))}</span></div>`;
+    tip.hidden = false;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = clamp(x + 16, 8, W - tw - 8) + 'px';
+    tip.style.top = clamp(y + 14, 8, H - th - 8) + 'px';
+  }
+  function hideTip() { tip.hidden = true; }
+
+  document.addEventListener('keydown', (e) => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName);
+    if (e.key === 'Escape') {
+      if (!$('#results').hidden) { closeResults(); return; }
+      if (state.pathFrom) { state.pathFrom = null; renderBanner(); requestDraw(); return; }
+      if (ui.detailOpen) { closeDetail(); return; }
+      if (ui.drawerOpen) { closeDrawer(); return; }
+      if (state.spot || state.path) { clearSpot(); return; }
+      return;
+    }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
+    else if (e.key === '+' || e.key === '=') zoomAt(W / 2, H / 2, 1.5);
+    else if (e.key === '-' || e.key === '_') zoomAt(W / 2, H / 2, 1 / 1.5);
+    else if (e.key === 'f' || e.key === 'F') homeCamera();
+    else if (e.key === 'r' || e.key === 'R') shuffle();
+    else if (e.key.startsWith('Arrow')) {
+      const step = 80 / cam.k;
+      if (e.key === 'ArrowLeft') cam.x -= step; if (e.key === 'ArrowRight') cam.x += step;
+      if (e.key === 'ArrowUp') cam.y -= step; if (e.key === 'ArrowDown') cam.y += step;
+      e.preventDefault(); requestDraw();
+    }
+  });
+  $('#zoom-in').addEventListener('click', () => zoomAt(W / 2, H / 2, 1.6));
+  $('#zoom-out').addEventListener('click', () => zoomAt(W / 2, H / 2, 1 / 1.6));
+  $('#zoom-fit').addEventListener('click', () => homeCamera());
+  $('#shuffle').addEventListener('click', shuffle);
+  function shuffle() {
+    const pool = films.filter((f) => f.pass && f !== state.selected);
+    if (!pool.length) return;
+    select(pool[Math.floor(Math.random() * pool.length)]);
+  }
+
+  // ------------------------------------------------------------------ selection and the detail panel
+  function choose(f) {
+    if (state.pathFrom) {
+      const from = state.pathFrom;
+      state.pathFrom = null;
+      if (f !== from) return showPath(from, f);
+    }
+    select(f);
+  }
+  function select(f, opts = {}) {
+    if (!f) return;
+    state.path = null;
+    if (state.spot && !state.spot.films.has(f)) state.spot = null;
+    state.selected = f;
+    state.selT0 = performance.now();
+    hideTip();
+    renderDetail(f);
+    openDetail();
+    renderBanner();
+    if (opts.fly !== false) fitFilms([f, ...f.nb.slice(0, 8)], true, 9);
+    setHash('film/' + f.id);
+    requestDraw();
+  }
+  function openDetail() {
+    ui.detailOpen = true;
+    if (isNarrow()) closeDrawer(true);
+    $('#detail').classList.add('is-open');
+    document.body.classList.add('detail-open');
+  }
+  function closeDetail() {
+    ui.detailOpen = false;
+    $('#detail').classList.remove('is-open', 'is-tall');
+    document.body.classList.remove('detail-open');
+    state.selected = null;
+    if (!state.spot && !state.path) setHash('');
+    else if (state.spot) setHash(state.spot.hash);
+    renderBanner();
+    requestDraw();
+  }
+
+  function whyClose(a, b) {
+    const same = (x, y) => (x || []).filter((v) => (y || []).includes(v));
+    const d = same(a.dir, b.dir);
+    if (d.length) return `Both directed by ${d[0]}`;
+    if (a.col && a.col === b.col) return `Both in ${a.col}`;
+    const w = same(a.wri, b.wri);
+    const kw = same(a.k, b.k).sort((x, y) => (kwCount.get(x) || 0) - (kwCount.get(y) || 0));
+    const c = same(a.cast, b.cast);
+    const bits = [];
+    if (w.length) bits.push(`written by ${w[0]}`);
+    if (c.length) bits.push(`with ${c.slice(0, 2).join(' and ')}`);
+    if (kw.length) bits.push(`common themes: ${kw.slice(0, 3).join(', ')}`);
+    if (!bits.length) {
+      const g = same(a.gn, b.gn).map((x) => x.toLowerCase());
+      const lang = a.l === b.l && a.l !== 'en' ? `in ${LANGS[a.l] || a.l}` : '';
+      if (g.length) bits.push(`both ${g.slice(0, 2).join(' and ')}${lang ? ', ' + lang : ''}`);
+      else if (lang) bits.push(`both ${lang}`);
+    }
+    const s = bits.join('; ');
+    return s ? s[0].toUpperCase() + s.slice(1) : 'Close in tone and era';
+  }
+
+  const personLink = (name) => `<button type="button" class="person" data-person="${esc(name)}">${esc(name)}</button>`;
+  const people = (list) => list.map(personLink).join(', ');
+  function hrs(min) { if (!min) return ''; const h = Math.floor(min / 60), m = min % 60; return h ? `${h} h ${m ? m + ' min' : ''}`.trim() : `${m} min`; }
+
+  function renderDetail(f) {
+    const regions = (f.m || []).filter((m) => m[1] >= 0.15).map(([ci, w]) => clusters[ci]);
+    const facts = [f.year, hrs(f.r), f.cert, LANGS[f.l] || f.l].filter(Boolean);
+    const links = [
+      `<a class="chip" href="https://www.themoviedb.org/movie/${f.id}" target="_blank" rel="noopener">TMDB</a>`,
+      f.im ? `<a class="chip" href="https://www.imdb.com/title/${esc(f.im)}/" target="_blank" rel="noopener">IMDb</a>` : '',
+      `<a class="chip" href="https://letterboxd.com/tmdb/${f.id}/" target="_blank" rel="noopener">Letterboxd</a>`,
+      f.tr ? `<a class="chip" href="https://www.youtube.com/watch?v=${esc(f.tr)}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>Trailer</a>` : '',
+    ].join('');
+    const rating = f.vc >= 5 ? `<div class="rating"><span class="rating__num">${f.va.toFixed(1)}</span><span class="rating__bar"><i style="width:${clamp(f.va * 10, 0, 100)}%"></i></span><span class="rating__votes">${nf.format(f.vc)} votes on TMDB</span></div>` : '';
+    const crew = [
+      f.wri && f.wri.length ? `<dt>Written by</dt><dd>${people(f.wri)}</dd>` : '',
+      f.dop && f.dop.length ? `<dt>Photographed by</dt><dd>${people(f.dop)}</dd>` : '',
+      f.mus && f.mus.length ? `<dt>Music by</dt><dd>${people(f.mus)}</dd>` : '',
+      f.cast && f.cast.length ? `<dt>Starring</dt><dd>${people(f.cast.slice(0, 8))}</dd>` : '',
+      f.c && f.c.length ? `<dt>From</dt><dd>${esc(f.c.map(countryName).join(', '))}</dd>` : '',
+      f.col ? `<dt>Part of</dt><dd>${esc(f.col)}</dd>` : '',
+    ].join('');
+    const near = f.nb.map((n, i) => `
+      <li><button type="button" class="near__item" data-film="${n.id}">
+        <span class="near__rank">${i + 1}</span>
+        ${n.p ? `<img class="near__img" loading="lazy" alt="" src="${img(n.p, 'w92')}">` : '<span class="near__img"></span>'}
+        <span class="near__text"><span class="near__title">${esc(n.t)}<small>${n.year || ''}</small></span><span class="near__why">${esc(whyClose(f, n))}</span></span>
+        <span class="near__score" style="color:${n.hex}" title="How close, on a 0 to 100 scale">${f.s[i]}<i style="width:${f.s[i]}%"></i></span>
+      </button></li>`).join('');
+    const files = (f.f || []).map((name) => `<li class="file"><span class="file__name">${esc(name)}</span><button type="button" class="chip" data-copy="${esc(name)}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a1 1 0 011-1h9"/></svg>Copy name</button></li>`).join('');
+    $('#detail-scroll').innerHTML = `
+      <div class="film__hero">
+        <div class="film__backdrop" id="backdrop"></div>
+        <div class="film__head">
+          ${f.p ? `<img class="film__poster" alt="Poster of ${esc(f.t)}" src="${img(f.p, 'w342')}">` : '<div class="film__poster"></div>'}
+          <div class="film__titles">
+            <h2 class="film__title" id="film-title" tabindex="-1">${esc(f.t)}</h2>
+            ${f.o ? `<p class="film__original${/[^\u0000-ɏḀ-ỿ]/.test(f.o.replace(/[\s\p{P}\p{S}\p{N}]/gu, '')) ? ' is-script' : ''}" lang="${esc(f.l === 'cn' ? 'zh-yue' : f.l)}">${esc(f.o)}</p>` : ''}
+          </div>
+        </div>
+      </div>
+      <ul class="film__facts">${facts.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      ${f.dir && f.dir.length ? `<p class="film__credit"><span>Directed by</span> ${people(f.dir)}</p>` : ''}
+      ${f.tg ? `<p class="film__tagline">${esc(f.tg)}</p>` : ''}
+      ${f.ov ? `<p class="film__overview">${esc(f.ov)}</p>` : ''}
+      <div class="film__actions">
+        ${regions.map((c) => `<button type="button" class="chip" data-region="${c.id}"><span class="swatch" style="color:${c.color};background:${c.color}"></span>${esc(c.name)}</button>`).join('')}
+        ${f.gn.map((g) => `<button type="button" class="chip" data-genre="${esc(g)}" aria-pressed="${filters.genres.has(g)}">${esc(g)}</button>`).join('')}
+      </div>
+      <section class="section">
+        <h3 class="section__title">The ${f.nb.length} nearest films</h3>
+        <p class="section__note">Ranked by how much they share: people, themes, genre, language and era.</p>
+        <ol class="near">${near}</ol>
+        <div class="film__actions" style="margin:12px 0 0"><button type="button" class="chip" data-pathfrom="${f.id}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M7.5 16.5C10 14 9 10 12 9s4.5-1 5-1.5"/></svg>Trace a path to another film</button></div>
+      </section>
+      ${rating || crew ? `<section class="section"><h3 class="section__title">Credits</h3>${rating}<dl class="kv" style="margin-top:${rating ? 16 : 0}px">${crew}</dl></section>` : ''}
+      ${f.k && f.k.length ? `<section class="section"><h3 class="section__title">Themes</h3><div class="tags">${f.k.map((k) => `<button type="button" class="tag" data-theme="${esc(k)}">${esc(k)}</button>`).join('')}</div></section>` : ''}
+      <section class="section"><h3 class="section__title">In the collection</h3>
+        ${f.f && f.f.length > 1 ? `<p class="section__note">${f.f.length} files make up this film.</p>` : ''}
+        <ul class="files">${files}</ul>
+        <div class="film__actions" style="margin:12px 0 0">${links}${meta.driveFolder ? `<a class="chip" href="${esc(meta.driveFolder)}" target="_blank" rel="noopener">Open the collection folder</a>` : ''}</div>
+      </section>
+      <p class="attribution">Film data and images from TMDB.</p>`;
+    $('#detail-scroll').scrollTop = 0;
+    if (f.b) {
+      const bg = new Image();
+      bg.referrerPolicy = 'no-referrer';
+      bg.onload = () => { const el = $('#backdrop'); if (el && state.selected === f) { el.style.backgroundImage = `url("${bg.src}")`; el.classList.add('is-loaded'); } };
+      bg.src = img(f.b, isNarrow() ? 'w780' : 'w1280');
+    }
+  }
+  let regionNames = null;
+  function countryName(code) {
+    try { regionNames = regionNames || new Intl.DisplayNames(['en'], { type: 'region' }); return regionNames.of(code) || code; } catch (e) { return code; }
+  }
+
+  // clicks inside panels
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-film],[data-person],[data-theme],[data-region],[data-genre],[data-copy],[data-pathfrom],[data-close],[data-tab],[data-lens],[data-lang],[data-runtime],[data-clear],[data-new],[data-sort]');
+    if (!t) return;
+    const d = t.dataset;
+    if (d.film) { const f = byId.get(+d.film); if (f) { if (isNarrow() && ui.drawerOpen) closeDrawer(true); choose(f); } }
+    else if (d.person) spotlightPerson(d.person);
+    else if (d.theme) spotlightTheme(d.theme);
+    else if (d.region) spotlightRegion(d.region);
+    else if (d.genre) { toggleSet(filters.genres, d.genre); applyFilters(); if (ui.detailOpen && state.selected) renderDetail(state.selected); if (ui.drawerOpen && ui.tab === 'filters') renderDrawer(); }
+    else if (d.copy) copyText(d.copy);
+    else if (d.pathfrom) { state.pathFrom = byId.get(+d.pathfrom); if (isNarrow()) closeDetail(); renderBanner(); toast('Now pick the destination on the map or in search'); requestDraw(); }
+    else if (d.close === 'detail') closeDetail();
+    else if (d.close === 'drawer') closeDrawer();
+    else if (d.close === 'spot') clearSpot();
+    else if (d.close === 'filters') { clearFilters(); }
+    else if (d.close === 'pathpick') { state.pathFrom = null; renderBanner(); requestDraw(); }
+    else if (d.tab) toggleDrawer(d.tab, t.closest('.dock') != null);
+    else if (d.lens) { applyLens(d.lens); renderDrawer(); }
+    else if (d.lang) { toggleSet(filters.langs, d.lang); applyFilters(); renderDrawer(); }
+    else if (d.runtime) { filters.runtime = filters.runtime === d.runtime ? 'any' : d.runtime; applyFilters(); renderDrawer(); }
+    else if (d.new) { filters.onlyNew = !filters.onlyNew; applyFilters(); renderDrawer(); }
+    else if (d.clear) { clearFilters(); renderDrawer(); }
+  });
+  const toggleSet = (set, v) => (set.has(v) ? set.delete(v) : set.add(v));
+  function clearFilters() {
+    filters.genres.clear(); filters.langs.clear(); filters.y0 = Y0; filters.y1 = Y1;
+    filters.minRating = 0; filters.runtime = 'any'; filters.onlyNew = false;
+    syncYearInputs(); applyFilters();
+    if (state.selected) renderDetail(state.selected);
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); toast('File name copied'); }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); toast('File name copied'); } catch (err) { toast('Copy failed; select the name instead'); }
+      ta.remove();
+    }
+  }
+  let toastTimer = 0;
+  function toast(msg) {
+    const el = $('#toast'); el.textContent = msg; el.classList.add('is-on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('is-on'), 2200);
+  }
+
+  // ------------------------------------------------------------------ spotlights: people, themes, regions, paths
+  const peopleIndex = new Map();
+  for (const f of films) {
+    const add = (name, role) => {
+      if (!name) return;
+      let p = peopleIndex.get(name);
+      if (!p) peopleIndex.set(name, (p = { name, films: new Set(), roles: new Map() }));
+      p.films.add(f); p.roles.set(role, (p.roles.get(role) || 0) + 1);
+    };
+    (f.dir || []).forEach((n) => add(n, 'director'));
+    (f.wri || []).forEach((n) => add(n, 'writer'));
+    (f.cast || []).forEach((n) => add(n, 'actor'));
+    (f.dop || []).forEach((n) => add(n, 'cinematographer'));
+    (f.mus || []).forEach((n) => add(n, 'composer'));
+  }
+  const themeIndex = new Map();
+  for (const f of films) for (const k of f.k || []) { if (!themeIndex.has(k)) themeIndex.set(k, new Set()); themeIndex.get(k).add(f); }
+  const roleText = (p) => [...p.roles.entries()].sort((a, b) => b[1] - a[1]).map((r) => r[0]).slice(0, 2).join(' and ');
+
+  function spotlight(kind, label, set, hash, color) {
+    const ordered = [...set].sort((a, b) => (a.year || 0) - (b.year || 0));
+    state.spot = { kind, label, films: set, ordered: kind === 'person' ? ordered : [], hash, color };
+    state.path = null;
+    if (state.selected && !set.has(state.selected)) closeDetail();
+    renderBanner();
+    fitFilms(ordered, true, 6);
+    setHash(hash);
+    requestDraw();
+  }
+  function spotlightPerson(name) {
+    const p = peopleIndex.get(name);
+    if (!p) return;
+    if (isNarrow()) { closeDetail(); closeDrawer(true); }
+    spotlight('person', `<b>${esc(name)}</b>, ${p.films.size} film${p.films.size > 1 ? 's' : ''} as ${roleText(p)}`, p.films, 'person/' + encodeURIComponent(name));
+  }
+  function spotlightTheme(k) {
+    const set = themeIndex.get(k);
+    if (!set) return;
+    if (isNarrow()) { closeDetail(); closeDrawer(true); }
+    spotlight('theme', `Theme <b>${esc(k)}</b>, ${set.size} film${set.size > 1 ? 's' : ''}`, set, 'theme/' + encodeURIComponent(k));
+  }
+  function spotlightRegion(id) {
+    const c = clusters.find((x) => x.id === id);
+    if (!c) return;
+    const set = new Set(films.filter((f) => f.m && f.m.length && clusters[f.m[0][0]] === c && f.m[0][1] >= 0.34));
+    if (isNarrow()) { closeDetail(); closeDrawer(true); }
+    spotlight('region', `<span class="banner__swatch" style="background:${c.color}"></span><span class="banner__text"><b>${esc(c.name)}</b>, ${set.size} films</span>`, set, 'region/' + c.id, c.color);
+  }
+  function clearSpot() {
+    state.spot = null; state.path = null; state.pathFrom = null;
+    renderBanner();
+    setHash(state.selected ? 'film/' + state.selected.id : '');
+    requestDraw();
+  }
+
+  // shortest chain of near neighbours between two films (Dijkstra on the neighbour graph)
+  const adjacency = films.map(() => []);
+  for (const f of films) f.nb.forEach((n, i) => {
+    const cost = 1.12 - (f.s[i] || 0) / 100;
+    adjacency[f.i].push([n.i, cost]); adjacency[n.i].push([f.i, cost]);
+  });
+  function shortestPath(a, b) {
+    const dist = new Float64Array(films.length).fill(Infinity), prev = new Int32Array(films.length).fill(-1), done = new Uint8Array(films.length);
+    dist[a.i] = 0;
+    const heap = [[0, a.i]];
+    const push = (x) => { heap.push(x); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+    while (heap.length) {
+      const [d, u] = pop();
+      if (done[u]) continue; done[u] = 1;
+      if (u === b.i) break;
+      for (const [v, c] of adjacency[u]) if (d + c < dist[v]) { dist[v] = d + c; prev[v] = u; push([dist[v], v]); }
+    }
+    if (!isFinite(dist[b.i])) return null;
+    const out = [];
+    for (let u = b.i; u !== -1; u = prev[u]) out.unshift(films[u]);
+    return out;
+  }
+  function showPath(a, b) {
+    const ps = shortestPath(a, b);
+    if (!ps) { toast('These two films are not connected'); return; }
+    state.spot = null;
+    state.selected = null;
+    state.path = { films: ps, t0: performance.now() };
+    renderPathPanel(ps);
+    openDetail();
+    renderBanner();
+    fitFilms(ps, true, 6);
+    setHash(`path/${a.id}-${b.id}`);
+    requestDraw();
+  }
+  function renderPathPanel(ps) {
+    const a = ps[0], b = ps[ps.length - 1];
+    $('#detail-scroll').innerHTML = `
+      <section class="section" style="margin-top:28px">
+        <h2 class="film__title" id="film-title" tabindex="-1" style="font-size:30px">From ${esc(a.t)} to ${esc(b.t)}</h2>
+        <p class="section__note" style="margin-top:10px">${ps.length - 2 === 0 ? 'They are direct neighbours.' : `${ps.length - 2} film${ps.length > 3 ? 's' : ''} in between, each a close neighbour of the next.`}</p>
+        <ol class="near">${ps.map((n, i) => `<li><button type="button" class="near__item" data-film="${n.id}">
+          <span class="near__rank">${i + 1}</span>
+          ${n.p ? `<img class="near__img" loading="lazy" alt="" src="${img(n.p, 'w92')}">` : '<span class="near__img"></span>'}
+          <span class="near__text"><span class="near__title">${esc(n.t)}<small>${n.year || ''}</small></span>${i ? `<span class="near__why">${esc(whyClose(ps[i - 1], n))}</span>` : ''}</span></button></li>`).join('')}</ol>
+      </section>
+      <p class="attribution">Film data and images from TMDB.</p>`;
+    $('#detail-scroll').scrollTop = 0;
+  }
+
+  function renderBanner() {
+    const el = $('#banner');
+    let html = '';
+    if (state.pathFrom) html = `<span class="banner__text">Pick a destination for the path from <b>${esc(state.pathFrom.t)}</b></span><button type="button" class="btn-quiet" data-close="pathpick">Cancel</button>`;
+    else if (state.path) html = `<span class="banner__text">Path of <b>${state.path.films.length}</b> films</span><button type="button" class="btn-quiet" data-close="spot">Clear</button>`;
+    else if (state.spot) html = `${state.spot.kind === 'region' ? state.spot.label : `<span class="banner__text">${state.spot.label}</span>`}<button type="button" class="btn-quiet" data-close="spot">Clear</button>`;
+    else if (activeFilterCount()) html = `<span class="banner__text"><b>${passCount}</b> of ${films.length} films match the filters</span><button type="button" class="btn-quiet" data-close="filters">Clear filters</button>`;
+    el.innerHTML = html;
+    el.hidden = !html;
+  }
+
+  // ------------------------------------------------------------------ search
+  const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  for (const f of films) f.keys = [norm(f.t), norm(f.o)].filter(Boolean);
+  const peopleKeys = [...peopleIndex.values()].map((p) => ({ p, key: norm(p.name) }));
+  const themeKeys = [...themeIndex.keys()].map((k) => ({ k, key: norm(k) }));
+  function scoreKey(key, q, qt) {
+    if (!key) return 0;
+    if (key === q) return 100;
+    if (key.startsWith(q)) return 80;
+    const words = key.split(' ');
+    if (qt.every((t) => words.some((w) => w.startsWith(t)))) return 60;
+    if (key.includes(q)) return 40;
+    return 0;
+  }
+  let results = [], resultIx = -1;
+  const qInput = $('#q'), resultsEl = $('#results');
+  function search(raw) {
+    const q = norm(raw);
+    if (!q) { closeResults(); return; }
+    const qt = q.split(' ');
+    const fs = films.map((f) => ({ f, s: Math.max(...f.keys.map((k) => scoreKey(k, q, qt))) + f.weight * 5 }))
+      .filter((r) => r.s >= 40).sort((a, b) => b.s - a.s).slice(0, 7);
+    const ps = peopleKeys.map(({ p, key }) => ({ p, s: scoreKey(key, q, qt) + Math.min(p.films.size, 10) }))
+      .filter((r) => r.s >= 40).sort((a, b) => b.s - a.s).slice(0, 5);
+    const ts = q.length < 3 ? [] : themeKeys.map(({ k, key }) => ({ k, s: scoreKey(key, q, qt) + Math.min(themeIndex.get(k).size, 10) }))
+      .filter((r) => r.s >= 60).sort((a, b) => b.s - a.s).slice(0, 4);
+    results = [
+      ...fs.map((r) => ({ type: 'film', f: r.f })),
+      ...ps.map((r) => ({ type: 'person', p: r.p })),
+      ...ts.map((r) => ({ type: 'theme', k: r.k })),
+    ];
+    resultIx = results.length ? 0 : -1;
+    let html = '', last = '';
+    results.forEach((r, i) => {
+      const group = { film: 'Films', person: 'People', theme: 'Themes' }[r.type];
+      if (group !== last) { html += `<div class="results__group">${group}</div>`; last = group; }
+      if (r.type === 'film') html += `<button type="button" class="result" role="option" id="res-${i}" data-ix="${i}" aria-selected="${i === resultIx}">${r.f.p ? `<img class="result__img" alt="" src="${img(r.f.p, 'w92')}">` : '<span class="result__img"></span>'}<span class="result__text"><span class="result__title">${esc(r.f.t)}</span><span class="result__meta">${esc([r.f.year, (r.f.dir || [])[0], r.f.o && r.f.o !== r.f.t ? r.f.o : ''].filter(Boolean).join(', '))}</span></span></button>`;
+      else if (r.type === 'person') html += `<button type="button" class="result" role="option" id="res-${i}" data-ix="${i}" aria-selected="${i === resultIx}"><span class="result__dot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.8 4-5.5 7-5.5s5.8 1.7 7 5.5"/></svg></span><span class="result__text"><span class="result__title">${esc(r.p.name)}</span><span class="result__meta">${r.p.films.size} film${r.p.films.size > 1 ? 's' : ''} as ${esc(roleText(r.p))}</span></span></button>`;
+      else html += `<button type="button" class="result" role="option" id="res-${i}" data-ix="${i}" aria-selected="${i === resultIx}"><span class="result__dot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" opacity=".0"/><path d="M7 7h10v10H7z" transform="rotate(45 12 12)"/></svg></span><span class="result__text"><span class="result__title">${esc(r.k)}</span><span class="result__meta">Theme, ${themeIndex.get(r.k).size} film${themeIndex.get(r.k).size > 1 ? 's' : ''}</span></span></button>`;
+    });
+    resultsEl.innerHTML = html || `<div class="results__empty">Nothing in the collection matches “${esc(raw)}”.</div>`;
+    resultsEl.hidden = false;
+    qInput.setAttribute('aria-expanded', 'true');
+    if (resultIx >= 0) qInput.setAttribute('aria-activedescendant', 'res-' + resultIx);
+  }
+  function closeResults() { resultsEl.hidden = true; qInput.setAttribute('aria-expanded', 'false'); qInput.removeAttribute('aria-activedescendant'); }
+  function pick(i) {
+    const r = results[i];
+    if (!r) return;
+    closeResults();
+    qInput.value = '';
+    qInput.blur();
+    if (r.type === 'film') { if (isNarrow() && ui.drawerOpen) closeDrawer(true); choose(r.f); }
+    else if (r.type === 'person') spotlightPerson(r.p.name);
+    else spotlightTheme(r.k);
+  }
+  qInput.addEventListener('input', () => search(qInput.value));
+  qInput.addEventListener('focus', () => { if (qInput.value) search(qInput.value); });
+  qInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!results.length) return;
+      resultIx = (resultIx + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
+      $$('.result', resultsEl).forEach((b) => b.setAttribute('aria-selected', String(+b.dataset.ix === resultIx)));
+      const cur = $('#res-' + resultIx); if (cur) cur.scrollIntoView({ block: 'nearest' });
+      qInput.setAttribute('aria-activedescendant', 'res-' + resultIx);
+    } else if (e.key === 'Enter') { e.preventDefault(); pick(Math.max(0, resultIx)); }
+  });
+  resultsEl.addEventListener('click', (e) => { const b = e.target.closest('.result'); if (b) pick(+b.dataset.ix); });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.search')) closeResults(); });
+
+  // ------------------------------------------------------------------ year histogram and range
+  const yearCounts = new Map();
+  for (const f of films) if (f.year) yearCounts.set(f.year, (yearCounts.get(f.year) || 0) + 1);
+  function yearsWidget(host) {
+    host.innerHTML = `<canvas aria-hidden="true"></canvas>
+      <input type="range" min="${Y0}" max="${Y1}" step="1" value="${filters.y0}" aria-label="From year">
+      <input type="range" min="${Y0}" max="${Y1}" step="1" value="${filters.y1}" aria-label="To year">`;
+    const [a, b] = $$('input', host);
+    const onInput = () => {
+      let lo = +a.value, hi = +b.value;
+      if (lo > hi) { if (document.activeElement === a) a.value = lo = hi; else b.value = hi = lo; }
+      filters.y0 = lo; filters.y1 = hi;
+      syncYearInputs(host);
+      applyFilters();
+    };
+    a.addEventListener('input', onInput); b.addEventListener('input', onInput);
+    host.insertAdjacentHTML('afterend', '');
+  }
+  function syncYearInputs(except) {
+    for (const host of $$('.years')) {
+      if (host === except) continue;
+      const ins = $$('input', host);
+      if (ins.length === 2) { ins[0].value = filters.y0; ins[1].value = filters.y1; }
+    }
+    for (const lab of $$('.years__labels')) lab.innerHTML = yearLabel();
+  }
+  const yearLabel = () => `<span>${filters.y0 > Y0 || filters.y1 < Y1 ? `<b>${filters.y0} to ${filters.y1}</b>` : `${Y0}`}</span><span>${filters.y0 > Y0 || filters.y1 < Y1 ? '' : Y1}</span>`;
+  function drawYears() {
+    for (const host of $$('.years')) {
+      const c = $('canvas', host);
+      if (!c) continue;
+      const w = host.clientWidth, h = 30;
+      if (!w) continue;
+      c.width = w * dpr; c.height = h * dpr;
+      const g = c.getContext('2d');
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, w, h);
+      const max = Math.max(...yearCounts.values());
+      const n = Y1 - Y0 + 1, bw = w / n;
+      for (let yv = Y0; yv <= Y1; yv++) {
+        const cnt = yearCounts.get(yv) || 0;
+        if (!cnt) continue;
+        const bh = Math.max(2, (cnt / max) * (h - 4));
+        const inRange = yv >= filters.y0 && yv <= filters.y1;
+        g.fillStyle = inRange ? labHex(ramp(DECADE_STOPS, Math.pow((yv - Y0) / Math.max(1, Y1 - Y0), 1.6))) : 'rgba(241,232,212,.14)';
+        g.globalAlpha = inRange ? 0.9 : 1;
+        g.fillRect((yv - Y0) * bw + 0.5, h - bh, Math.max(1, bw - 1), bh);
+      }
+    }
+  }
+  yearsWidget($('#years-main'));
+  $('#timeline').insertAdjacentHTML('beforeend', `<div class="years__labels">${yearLabel()}</div>`);
+
+  // ------------------------------------------------------------------ drawer: regions, filters, browse, collection, about
+  function toggleDrawer(tab, fromDock) {
+    if (ui.drawerOpen && ui.tab === tab && fromDock) { closeDrawer(); return; }
+    ui.tab = tab;
+    ui.drawerOpen = true;
+    if (isNarrow() && ui.detailOpen) { $('#detail').classList.remove('is-open'); ui.detailOpen = false; document.body.classList.remove('detail-open'); }
+    $('#drawer').classList.add('is-open');
+    document.body.classList.add('drawer-open');
+    renderDrawer();
+    $('#drawer-scroll').scrollTop = 0;
+    syncDock();
+    slideForDrawer(true);
+  }
+  function closeDrawer(quiet) {
+    ui.drawerOpen = false;
+    $('#drawer').classList.remove('is-open', 'is-tall');
+    document.body.classList.remove('drawer-open');
+    syncDock();
+    slideForDrawer(false);
+    if (!quiet) requestDraw();
+  }
+  // keep the map centred in the part of the screen the drawer leaves free (desktop only)
+  let drawerShift = 0;
+  function slideForDrawer(open) {
+    const want = open && !isNarrow() ? (Math.min(400, W - 24) + 12) / 2 : 0;
+    if (want === drawerShift) return;
+    const dx = (want - drawerShift) / cam.k;
+    drawerShift = want;
+    if (flight) { flight.to.x -= dx; return; }
+    flyTo(cam.x - dx, cam.y, cam.k, 500);
+  }
+  function syncDock() {
+    $$('.dock button[data-tab]').forEach((b) => b.setAttribute('aria-pressed', String(ui.drawerOpen && b.dataset.tab === ui.tab)));
+    $$('.drawer__tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === ui.tab)));
+  }
+  function renderDrawer() {
+    const body = $('#drawer-body');
+    syncDock();
+    if (ui.tab === 'regions') body.innerHTML = regionsHtml();
+    else if (ui.tab === 'filters') { body.innerHTML = filtersHtml(); wireFilters(); }
+    else if (ui.tab === 'browse') { body.innerHTML = browseHtml(); wireBrowse(); }
+    else if (ui.tab === 'collection') body.innerHTML = collectionHtml();
+    else body.innerHTML = aboutHtml();
+  }
+  function regionsHtml() {
+    const list = [...clusters].sort((a, b) => b.n - a.n);
+    const loose = films.filter((f) => !f.m || !f.m.length || f.m[0][1] < 0.5).length;
+    return `<h2>Regions</h2>
+      <p class="muted">Groups of films that resemble each other, found from the films' full details rather than from their position on the map. Films between regions take on a blend of their neighbours' colours.</p>
+      <ul class="regions">${list.map((c) => `<li><button type="button" class="region" data-region="${c.id}"><span class="swatch" style="color:${c.color};background:${c.color}"></span><span class="region__name">${esc(c.name)}</span><span class="region__n">${c.n}</span><span class="region__line">${esc(c.tagline || '')}</span></button></li>`).join('')}</ul>
+      <p class="muted" style="margin-top:18px">${loose} films sit between regions.</p>`;
+  }
+  function filtersHtml() {
+    const lensBtns = Object.entries(LENSES).map(([k, v]) => `<button type="button" class="chip" data-lens="${k}" aria-pressed="${lens === k}">${v.name}</button>`).join('');
+    const legend = lens === 'decade' ? `<div class="lens-legend"><span>${Y0}</span><i style="background:linear-gradient(90deg,${[0, .25, .5, .75, 1].map((t) => labHex(ramp(DECADE_STOPS, t))).join(',')})"></i><span>${Y1}</span></div>`
+      : lens === 'rating' ? `<div class="lens-legend"><span>5.8</span><i style="background:linear-gradient(90deg,${[0, .33, .66, 1].map((t) => labHex(ramp(RATING_STOPS, t))).join(',')})"></i><span>8.5+</span></div>`
+      : lens === 'language' ? `<div class="tags" style="margin-top:10px">${langOrder.slice(0, 12).map((c) => `<span class="tag"><span class="swatch" style="display:inline-block;margin-right:6px;color:${labHex(langLab.get(c))};background:${labHex(langLab.get(c))}"></span>${esc(LANGS[c] || c)}</span>`).join('')}</div>` : '';
+    const genreCounts = new Map();
+    for (const f of films) for (const g of f.gn) genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
+    const genres = [...genreCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const langs = langOrder.slice(0, 18);
+    return `<h2>Filters</h2>
+      <p class="muted" id="filter-count">${filterCountText()}</p>
+      <div class="field"><span class="field__label">Colour the map by</span><div class="seg">${lensBtns}</div>${legend}</div>
+      <div class="field"><span class="field__label">Genres (films must have all you pick)</span><div class="seg">${genres.map(([g, n]) => `<button type="button" class="chip" data-genre="${esc(g)}" aria-pressed="${filters.genres.has(g)}">${esc(g)} <span class="muted">${n}</span></button>`).join('')}</div></div>
+      <div class="field"><span class="field__label">Original language</span><div class="seg">${langs.map((c) => `<button type="button" class="chip" data-lang="${esc(c)}" aria-pressed="${filters.langs.has(c)}">${esc(LANGS[c] || c)}</button>`).join('')}</div></div>
+      <div class="field"><span class="field__label">Years</span><div class="years" id="years-drawer"></div><div class="years__labels">${yearLabel()}</div></div>
+      <div class="field"><span class="field__label">Running time</span><div class="seg">
+        <button type="button" class="chip" data-runtime="short" aria-pressed="${filters.runtime === 'short'}">Under 100 min</button>
+        <button type="button" class="chip" data-runtime="mid" aria-pressed="${filters.runtime === 'mid'}">100 to 140 min</button>
+        <button type="button" class="chip" data-runtime="long" aria-pressed="${filters.runtime === 'long'}">Over 140 min</button></div></div>
+      <div class="field"><span class="field__label">Lowest TMDB rating</span><div class="range-row"><input type="range" id="min-rating" min="0" max="8.5" step="0.1" value="${filters.minRating}"><output id="min-rating-out">${filters.minRating ? filters.minRating.toFixed(1) : 'Any'}</output></div></div>
+      ${hasNew ? `<div class="field"><button type="button" class="chip" data-new="1" aria-pressed="${filters.onlyNew}">Only films added since ${esc(fmtDate(since))}</button></div>` : ''}
+      ${activeFilterCount() ? '<div class="field"><button type="button" class="btn-quiet" data-clear="1">Clear all filters</button></div>' : ''}`;
+  }
+  const filterCountText = () => activeFilterCount() ? `${passCount} of ${films.length} films match.` : `All ${films.length} films are shown. Films that don't match a filter fade into the background.`;
+  function updateFilterCount() { const el = $('#filter-count'); if (el) el.textContent = filterCountText(); }
+  function wireFilters() {
+    const host = $('#years-drawer');
+    if (host) { yearsWidget(host); drawYears(); }
+    const r = $('#min-rating');
+    if (r) r.addEventListener('input', () => { filters.minRating = +r.value; $('#min-rating-out').textContent = filters.minRating ? filters.minRating.toFixed(1) : 'Any'; applyFilters(); });
+  }
+  let browseSort = store.get('sort', 'title');
+  function browseHtml() {
+    const sorts = { title: 'Title', year: 'Newest', rating: 'TMDB rating', added: 'Recently added', runtime: 'Longest' };
+    return `<h2>Browse</h2>
+      <p class="muted">${passCount === films.length ? `All ${films.length} films.` : `${passCount} films match the filters.`}</p>
+      <label class="field" style="display:flex;gap:10px;align-items:center;margin-top:10px"><span class="muted">Sort by</span>
+        <select class="select" id="sort">${Object.entries(sorts).map(([k, v]) => `<option value="${k}" ${browseSort === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <div class="grid-films" id="grid"></div>
+      ${(DATA.unplaced || []).length ? `<h3>Not on the map yet</h3><p class="muted">These files are in the collection but their details still need checking.</p><ul class="plain-list">${DATA.unplaced.map((u) => `<li>${esc(u.t)}${u.y ? ` (${u.y})` : ''}</li>`).join('')}</ul>` : ''}`;
+  }
+  function wireBrowse() {
+    const sel = $('#sort');
+    sel.addEventListener('change', () => { browseSort = sel.value; store.set('sort', browseSort); fillGrid(); });
+    fillGrid();
+  }
+  function fillGrid() {
+    const cmp = {
+      title: (a, b) => a.t.localeCompare(b.t, 'en', { sensitivity: 'base', ignorePunctuation: true }),
+      year: (a, b) => (b.year || 0) - (a.year || 0) || a.t.localeCompare(b.t),
+      rating: (a, b) => (b.vc >= 25) - (a.vc >= 25) || b.va - a.va,
+      added: (a, b) => (b.a || '').localeCompare(a.a || '') || (b.year || 0) - (a.year || 0),
+      runtime: (a, b) => (b.r || 0) - (a.r || 0),
+    }[browseSort] || ((a, b) => 0);
+    const list = films.filter((f) => f.pass).sort(cmp);
+    $('#grid').innerHTML = list.map((f) => `<button type="button" class="card-film" data-film="${f.id}">${f.p ? `<img loading="lazy" alt="" src="${img(f.p, 'w185')}">` : `<span class="ph">${esc(f.t)}</span>`}<span>${esc(f.t)} <small>${f.year || ''}</small></span></button>`).join('');
+  }
+  function fmtDate(iso) { try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return iso; } }
+  function collectionHtml() {
+    const minutes = films.reduce((s, f) => s + (f.r || 0), 0);
+    const langCount = new Set(films.map((f) => f.l)).size;
+    const countries = new Set(films.flatMap((f) => f.c || [])).size;
+    const top = (role, min) => [...peopleIndex.values()].map((p) => ({ p, n: [...p.films].filter((f) => (role === 'director' ? f.dir : f.cast || []).includes(p.name)).length }))
+      .filter((x) => x.n >= min).sort((a, b) => b.n - a.n || a.p.name.localeCompare(b.p.name)).slice(0, 10);
+    const dirs = top('director', 2), actors = top('actor', 3);
+    const maxD = dirs.length ? dirs[0].n : 1, maxA = actors.length ? actors[0].n : 1;
+    const langs = langOrder.slice(0, 8).map((c) => [c, films.filter((f) => f.l === c).length]);
+    const recent = films.filter((f) => f.a).sort((a, b) => (b.a || '').localeCompare(a.a || '')).slice(0, 8);
+    return `<h2>The collection</h2>
+      <div class="stats">
+        <div><span class="stat__num">${nf.format(films.length)}</span><span class="stat__label">films on the map</span></div>
+        <div><span class="stat__num">${nf.format(Math.round(minutes / 60))}</span><span class="stat__label">hours, or ${Math.round(minutes / 1440)} days without sleep</span></div>
+        <div><span class="stat__num">${langCount}</span><span class="stat__label">original languages</span></div>
+        <div><span class="stat__num">${countries}</span><span class="stat__label">countries of origin</span></div>
+        <div><span class="stat__num">${Y0}</span><span class="stat__label">the oldest film</span></div>
+        <div><span class="stat__num">${clusters.length}</span><span class="stat__label">regions</span></div>
+      </div>
+      ${dirs.length ? `<h3>Most collected directors</h3><ul class="bars">${dirs.map((d) => `<li><button type="button" class="person" data-person="${esc(d.p.name)}">${esc(d.p.name)}</button><span class="n">${d.n}</span><i style="width:${d.n / maxD * 100}%"></i></li>`).join('')}</ul>` : ''}
+      ${actors.length ? `<h3>Faces that keep returning</h3><ul class="bars">${actors.map((d) => `<li><button type="button" class="person" data-person="${esc(d.p.name)}">${esc(d.p.name)}</button><span class="n">${d.n}</span><i style="width:${d.n / maxA * 100}%"></i></li>`).join('')}</ul>` : ''}
+      <h3>Languages</h3><ul class="bars">${langs.map(([c, n]) => `<li><button type="button" data-lang="${esc(c)}">${esc(LANGS[c] || c)}</button><span class="n">${n}</span><i style="width:${n / langs[0][1] * 100}%"></i></li>`).join('')}</ul>
+      ${hasNew ? `<h3>Recently added</h3><ul class="plain-list">${recent.filter(isNew).map((f) => `<li><button type="button" class="person" data-film="${f.id}">${esc(f.t)}</button> <span class="muted">${f.year || ''}</span></li>`).join('')}</ul>` : ''}
+      <p class="muted" style="margin-top:22px">Map drawn ${esc(fmtDate(meta.built))}.</p>`;
+  }
+  const TMDB_LOGO = '<svg viewBox="0 0 190.24 81.52" role="img" aria-label="TMDB"><defs><linearGradient id="tmdb-g" y1="40.76" x2="190.24" y2="40.76" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#90cea1"/><stop offset="0.56" stop-color="#3cbec9"/><stop offset="1" stop-color="#00b3e5"/></linearGradient></defs><path fill="url(#tmdb-g)" d="M105.67,36.06h66.9A17.67,17.67,0,0,0,190.24,18.4h0A17.67,17.67,0,0,0,172.57.73h-66.9A17.67,17.67,0,0,0,88,18.4h0A17.67,17.67,0,0,0,105.67,36.06Zm-88,45h76.9A17.67,17.67,0,0,0,112.24,63.4h0A17.67,17.67,0,0,0,94.57,45.73H17.67A17.67,17.67,0,0,0,0,63.4H0A17.67,17.67,0,0,0,17.67,81.06ZM10.41,35.42h7.8V6.92h10.1V0H.31v6.9h10.1Zm28.1,0h7.8V8.25h.1l9,27.15h6l9.3-27.15h.1V35.4h7.8V0H66.76l-8.2,23.1h-.1L50.31,0H38.51ZM152.43,55.67a15.07,15.07,0,0,0-4.52-5.52,18.57,18.57,0,0,0-6.68-3.08,33.54,33.54,0,0,0-8.07-1h-11.7v35.4h12.75a24.58,24.58,0,0,0,7.55-1.15A19.34,19.34,0,0,0,148.11,77a16.27,16.27,0,0,0,4.37-5.5,16.91,16.91,0,0,0,1.63-7.58A18.5,18.5,0,0,0,152.43,55.67ZM145,68.6A8.8,8.8,0,0,1,142.36,72a10.7,10.7,0,0,1-4,1.82,21.57,21.57,0,0,1-5,.55h-4.05v-21h4.6a17,17,0,0,1,4.67.63,11.66,11.66,0,0,1,3.88,1.87A9.14,9.14,0,0,1,145,59a9.87,9.87,0,0,1,1,4.52A11.89,11.89,0,0,1,145,68.6Zm44.63-.13a8,8,0,0,0-1.58-2.62A8.38,8.38,0,0,0,185.63,64a10.31,10.31,0,0,0-3.17-1v-.1a9.22,9.22,0,0,0,4.42-2.82,7.43,7.43,0,0,0,1.68-5,8.42,8.42,0,0,0-1.15-4.65,8.09,8.09,0,0,0-3-2.72,12.56,12.56,0,0,0-4.18-1.3,32.84,32.84,0,0,0-4.62-.33h-13.2v35.4h14.5a22.41,22.41,0,0,0,4.72-.5,13.53,13.53,0,0,0,4.28-1.65,9.42,9.42,0,0,0,3.1-3,8.52,8.52,0,0,0,1.2-4.68A9.39,9.39,0,0,0,189.66,68.47ZM170.21,52.72h5.3a10,10,0,0,1,1.85.18,6.18,6.18,0,0,1,1.7.57,3.39,3.39,0,0,1,1.22,1.13,3.22,3.22,0,0,1,.48,1.82,3.63,3.63,0,0,1-.43,1.8,3.4,3.4,0,0,1-1.12,1.2,4.92,4.92,0,0,1-1.58.65,7.51,7.51,0,0,1-1.77.2h-5.65Zm11.72,20a3.9,3.9,0,0,1-1.22,1.3,4.64,4.64,0,0,1-1.68.7,8.18,8.18,0,0,1-1.82.2h-7v-8h5.9a15.35,15.35,0,0,1,2,.15,8.47,8.47,0,0,1,2.05.55,4,4,0,0,1,1.57,1.18,3.11,3.11,0,0,1,.63,2A3.71,3.71,0,0,1,181.93,72.72Z"/></svg>';
+  function aboutHtml() {
+    return `<h2>About this map</h2>
+      <p>Every film in the collection is a point of light. Two films sit close together when they share a lot: the people who made them and act in them, their themes, genres, original language, era and pace. Nothing is placed by hand.</p>
+      <p>The coloured regions are groups found from each film's full details. Pick a film to see its twenty nearest films and what links them, search for a director or actor to light up their work, or trace a path between any two films.</p>
+      <h3>Getting around</h3>
+      <div class="keys">
+        <kbd>/</kbd><span>Search</span>
+        <kbd>R</kbd><span>A random film</span>
+        <kbd>F</kbd><span>Show the whole map</span>
+        <kbd>+ −</kbd><span>Zoom in and out (or scroll, or pinch)</span>
+        <kbd>Esc</kbd><span>Close the open panel</span>
+      </div>
+      <p class="muted" style="margin-top:12px">Zoom in far enough and the points turn into posters. Links to a film (and to people, themes and paths) can be shared: the address bar always describes what you are looking at.</p>
+      <h3>Credits</h3>
+      <div class="tmdb">${TMDB_LOGO}<p class="muted" style="margin:0">This product uses the TMDB API but is not endorsed or certified by TMDB. Film details, posters and backdrops come from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">The Movie Database</a>.</p></div>
+      <p class="muted">Type set in Cormorant and Sofia Sans.</p>`;
+  }
+
+  // ------------------------------------------------------------------ bottom sheets on small screens: drag the grip
+  for (const grip of $$('[data-grip]')) {
+    let startY = 0, startH = 0, panel = null;
+    grip.addEventListener('pointerdown', (e) => { panel = grip.closest('.panel'); startY = e.clientY; startH = panel.getBoundingClientRect().height; grip.setPointerCapture(e.pointerId); panel.style.transition = 'none'; });
+    grip.addEventListener('pointermove', (e) => { if (!panel) return; const dy = e.clientY - startY; panel.style.transform = dy > 0 ? `translateY(${dy}px)` : 'none'; if (dy < -40) panel.classList.add('is-tall'); });
+    grip.addEventListener('pointerup', (e) => {
+      if (!panel) return;
+      const dy = e.clientY - startY;
+      panel.style.transition = ''; panel.style.transform = '';
+      if (dy > 120) { if (panel.id === 'detail') closeDetail(); else closeDrawer(); }
+      else if (Math.abs(dy) < 6) panel.classList.toggle('is-tall');
+      panel = null;
+    });
+  }
+
+  // ------------------------------------------------------------------ addresses: #film/ID, #person/NAME, #theme/WORD, #region/ID, #path/A-B
+  let ignoreHash = false;
+  function setHash(h) {
+    const want = h ? '#' + h : '';
+    if (location.hash === want || (!want && !location.hash)) return;
+    ignoreHash = true;
+    if (want) location.hash = h;
+    else history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(() => { ignoreHash = false; }, 0);
+  }
+  function route() {
+    if (ignoreHash) return;
+    const h = decodeURIComponent(location.hash.slice(1));
+    const [kind, ...rest] = h.split('/');
+    const arg = rest.join('/');
+    if (kind === 'film' && byId.has(+arg)) select(byId.get(+arg));
+    else if (kind === 'person' && peopleIndex.has(arg)) spotlightPerson(arg);
+    else if (kind === 'theme' && themeIndex.has(arg)) spotlightTheme(arg);
+    else if (kind === 'region') spotlightRegion(arg);
+    else if (kind === 'path') { const [a, b] = arg.split('-').map((x) => byId.get(+x)); if (a && b) showPath(a, b); }
+    else if (!h) { if (ui.detailOpen) closeDetail(); if (state.spot || state.path) clearSpot(); }
+  }
+  window.addEventListener('hashchange', route);
+
+  // ------------------------------------------------------------------ start
+  document.title = meta.title || document.title;
+  $('#brand-title').textContent = meta.title || 'Lumière';
+  $('#brand-line').innerHTML = `<span class="brand__count">${nf.format(films.length)} films.</span> ${esc(meta.tagline || '')}`;
+  applyLens(lens);
+  resize();
+  applyFilters();
+  window.addEventListener('resize', () => { resize(); drawYears(); });
+  motionQuery.addEventListener && motionQuery.addEventListener('change', requestDraw);
+  if (!still()) { introT0 = performance.now(); }
+  requestAnimationFrame(() => document.body.classList.remove('intro'));
+  if (location.hash) setTimeout(route, still() ? 0 : 450);
+  drawYears();
+})();
+</script>
+</body>
+</html>

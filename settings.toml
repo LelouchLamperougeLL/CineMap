@@ -1,0 +1,22 @@
+# Settings for the movie map. Edit freely; run update.cmd afterwards.
+
+# Where the list of files comes from: the CSV exported from Google Drive (column "Name"),
+# or a folder on this computer (for example a Google Drive for Desktop folder such as
+# "G:/My Drive/Movies"), in which case the files are listed directly and no export is needed.
+source = "files.csv"
+
+# Shown at the top of the map.
+title = "Lumière"
+tagline = "The closer two films sit, the more they have in common."
+
+# Optional link to the shared Drive folder, shown on each film as "Open the collection folder".
+drive_folder_url = ""
+
+# How many TMDB requests per second the fetcher may make (TMDB allows far more; this is polite).
+requests_per_second = 4.0
+
+# Rename map regions. Each region has an id (c1, c2, ...) that stays the same between updates,
+# so a name you give here sticks. The review page (review.cmd, "Regions") lists the ids. Example:
+# [cluster_names]
+# c3 = "Hand-drawn wonder"
+[cluster_names]
