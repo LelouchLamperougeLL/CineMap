@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review matches</title>
+<meta name="robots" content="noindex">
+<style>
+:root { --night:#0c1428; --night-2:#121d38; --night-3:#1a2747; --line:rgba(241,232,212,.13); --vellum:#f1e8d4; --dust:#a2abc2; --brass:#d8b46a; --warn:#f0a07a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--night); color: var(--vellum); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: rgba(12,20,40,.95); border-bottom: 1px solid var(--line); padding: 14px 24px 12px; backdrop-filter: blur(10px); }
+h1 { margin: 0; font: 600 28px/1.1 Georgia, "Times New Roman", serif; }
+.summary { color: var(--dust); margin: 4px 0 10px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.chip { border: 1px solid var(--line); background: rgba(241,232,212,.05); border-radius: 8px; padding: 6px 11px; }
+.chip[aria-pressed="true"] { background: rgba(216,180,106,.2); border-color: rgba(216,180,106,.6); }
+.primary { background: var(--brass); color: #1b1407; border: 0; border-radius: 8px; padding: 7px 14px; font-weight: 600; }
+.primary:disabled { opacity: .35; cursor: default; }
+input[type=search], input[type=text] { background: var(--night-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+main { max-width: 1100px; margin: 0 auto; padding: 18px 24px 80px; }
+.row { display: grid; grid-template-columns: 74px 1fr; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.poster { width: 74px; aspect-ratio: 2/3; border-radius: 4px; object-fit: cover; background: var(--night-3); display: block; }
+.file { font-weight: 600; overflow-wrap: anywhere; }
+.status { display: inline-block; font-size: 12.5px; padding: 1px 8px; border-radius: 6px; margin-left: 6px; vertical-align: 1px; background: rgba(241,232,212,.08); color: var(--dust); }
+.status.flagged { background: rgba(240,160,122,.18); color: var(--warn); }
+.status.manual { background: rgba(216,180,106,.18); color: var(--brass); }
+.now { margin: 4px 0 0; }
+.now b { font-weight: 600; }
+.muted { color: var(--dust); }
+.flags { margin: 6px 0 0; padding-left: 18px; color: var(--warn); }
+.why { margin: 6px 0 0; padding-left: 18px; color: var(--dust); font-size: 14px; }
+.cands { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.cand { display: grid; grid-template-columns: 44px 1fr; gap: 10px; width: 300px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(241,232,212,.03); text-align: left; }
+.cand img, .cand .ph { width: 44px; aspect-ratio: 2/3; border-radius: 3px; object-fit: cover; background: var(--night-3); }
+.cand b { display: block; line-height: 1.25; }
+.cand small { color: var(--dust); display: block; font-size: 12.5px; line-height: 1.35; }
+.cand .use { margin-top: 6px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.tools input[type=text] { width: 280px; }
+.results { margin-top: 10px; }
+.msg { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--vellum); color: #141a2b; padding: 10px 16px; border-radius: 10px; font-weight: 600; display: none; max-width: 90vw; white-space: pre-wrap; }
+.msg.err { background: var(--warn); }
+.empty { color: var(--dust); padding: 40px 0; text-align: center; }
+details summary { cursor: pointer; color: var(--dust); margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Review matches</h1>
+  <p class="summary" id="summary">Loading...</p>
+  <div class="bar">
+    <button class="chip" data-filter="review" aria-pressed="true">Needs review</button>
+    <button class="chip" data-filter="good">Matched, not certain</button>
+    <button class="chip" data-filter="manual">Set by hand</button>
+    <button class="chip" data-filter="skipped">Skipped</button>
+    <button class="chip" data-filter="all">Everything</button>
+    <button class="chip" data-filter="regions">Regions</button>
+    <input type="search" id="find" placeholder="Filter by file name" style="flex:1;min-width:180px">
+    <button class="primary" id="rebuild" disabled>Rebuild the map</button>
+  </div>
+</header>
+<main id="list"></main>
+<div class="msg" id="msg"></div>
+<script>
+const TOKEN = "{{TOKEN}}";
+const IMG = "https://image.tmdb.org/t/p/w154";
+let state = { files: [] }, filter = "review";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function toast(text, err) { const m = $("#msg"); m.textContent = text; m.className = "msg" + (err ? " err" : ""); m.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => (m.style.display = "none"), err ? 6000 : 2600); }
+async function api(path, body) {
+  const res = await fetch(path, body
+    ? { method: "POST", headers: { "Content-Type": "application/json", "X-Review-Token": TOKEN }, body: JSON.stringify(body) }
+    : { headers: { "X-Review-Token": TOKEN } });
+  const data = await res.json().catch(() => ({ error: "The review server stopped. Start review.cmd again." }));
+  if (!res.ok || data.error) throw new Error(data.error || res.statusText);
+  return data;
+}
+async function load() {
+  state = await api("/api/state");
+  const c = (s) => state.files.filter((f) => f.status === s).length;
+  $("#summary").textContent = `${state.files.length} files: ${c("flagged")} need review, ${c("matched")} matched automatically, ${c("manual")} set by hand, ${c("skipped")} skipped.` + (state.problems.length ? "  Problems in corrections.txt: " + state.problems.join("; ") : "");
+  $("#rebuild").disabled = !state.dirty;
+  render();
+}
+function visible() {
+  const q = $("#find").value.trim().toLowerCase();
+  return state.files.filter((f) => {
+    if (q && !f.file.toLowerCase().includes(q)) return false;
+    if (filter === "review") return f.status === "flagged" || f.status === "error" || f.status === "new";
+    if (filter === "good") return f.status === "matched" && f.confidence !== "high";
+    if (filter === "manual") return f.status === "manual";
+    if (filter === "skipped") return f.status === "skipped";
+    return true;
+  });
+}
+function candHtml(f, c) {
+  const meta = [c.year, c.language, c.directors && c.directors.length ? c.directors.join(", ") : "", c.votes != null ? `${c.votes} votes` : ""].filter(Boolean).join(" | ");
+  return `<div class="cand">${c.poster_path ? `<img loading="lazy" alt="" src="${IMG}${esc(c.poster_path)}">` : '<span class="ph"></span>'}
+    <div><b>${esc(c.title)}</b>${c.original_title && c.original_title !== c.title ? `<small>${esc(c.original_title)}</small>` : ""}<small>${esc(meta)}</small>
+    <small><a href="https://www.themoviedb.org/movie/${c.id}" target="_blank" rel="noopener">TMDB ${c.id}</a></small>
+    <button class="chip use" data-use="${c.id}" data-file="${esc(f.file)}">Use this film</button></div></div>`;
+}
+function renderRegions() {
+  $("#list").innerHTML = `<p class="muted">To rename a region, open settings.toml and add a line under <b>[cluster_names]</b>, for example <b>${esc((state.regions[0] || {}).id || "c1")} = "A better name"</b>, then run update.cmd. The ids stay the same between updates.</p>` +
+    state.regions.map((r) => `<section class="row" style="grid-template-columns:74px 1fr"><div class="file" style="font-size:20px">${esc(r.id)}</div><div><div class="file">${esc(r.name)}${r.name !== r.auto_name ? ` <span class="status">automatic name: ${esc(r.auto_name)}</span>` : ""}</div><p class="now muted">${r.n} films, such as ${esc(r.examples.join(", "))}</p></div></section>`).join("");
+}
+function render() {
+  if (filter === "regions") return renderRegions();
+  const list = visible();
+  if (!list.length) {
+    $("#list").innerHTML = `<p class="empty">${filter === "review" ? "Nothing needs review. Every file is either matched or set by hand." : "Nothing here."}</p>`;
+    return;
+  }
+  $("#list").innerHTML = list.slice(0, 300).map((f) => {
+    const film = f.film;
+    const p = f.parsed || {};
+    const parsed = [p.title, p.year, (p.langs || []).join("/"), p.part ? `part ${p.part}` : ""].filter(Boolean).join(" | ");
+    const cands = (f.candidates || []).filter((c) => !film || c.id !== film.id);
+    return `<section class="row">
+      ${film && film.poster_path ? `<img class="poster" loading="lazy" alt="" src="${IMG}${esc(film.poster_path)}">` : '<div class="poster"></div>'}
+      <div>
+        <div class="file">${esc(f.file)}<span class="status ${esc(f.status)}">${esc({ flagged: "needs review", matched: "matched" + (f.confidence ? ", " + f.confidence : ""), manual: "set by hand", skipped: "skipped", error: "error", new: "not matched yet" }[f.status] || f.status)}</span></div>
+        <p class="now muted">Read from the name: ${esc(parsed || "nothing")}</p>
+        ${film ? `<p class="now">On the map as <b>${esc(film.title)}</b> (${esc(film.year)})${film.directors.length ? ", " + esc(film.directors.join(", ")) : ""} <a class="muted" href="https://www.themoviedb.org/movie/${film.id}" target="_blank" rel="noopener">TMDB ${film.id}</a></p>` : ""}
+        ${(f.flags || []).length ? `<ul class="flags">${f.flags.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+        ${(f.why || []).length ? `<details ${f.status === "flagged" ? "open" : ""}><summary>Why ${f.status === "flagged" ? "the suggestion" : "this match"}</summary><ul class="why">${f.why.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+        ${cands.length ? `<details ${f.status === "flagged" ? "open" : ""}><summary>${f.status === "flagged" ? "Candidates" : "Other candidates"}</summary><div class="cands">${cands.map((c) => candHtml(f, c)).join("")}</div></details>` : ""}
+        <div class="tools">
+          <input type="text" placeholder="Search TMDB" aria-label="Search TMDB" data-q="${esc(f.file)}" value="${esc(p.title || "")}">
+          <button class="chip" data-search="${esc(f.file)}" data-year="${esc(p.year || "")}">Search</button>
+          <input type="text" placeholder="or paste a TMDB or IMDb link" aria-label="TMDB or IMDb link or id" data-link="${esc(f.file)}">
+          <button class="chip" data-paste="${esc(f.file)}">Use this link</button>
+          <button class="chip" data-skip="${esc(f.file)}">Not a film (skip)</button>
+          ${f.has_decision ? `<button class="chip" data-auto="${esc(f.file)}">Back to automatic</button>` : ""}
+        </div>
+        <div class="results" data-results="${esc(f.file)}"></div>
+      </div>
+    </section>`;
+  }).join("") + (list.length > 300 ? `<p class="empty">Showing 300 of ${list.length}. Use the filter box to narrow it down.</p>` : "");
+}
+async function decide(file, decision) {
+  try {
+    await api("/api/decide", { file, decision });
+    toast(decision === "skip" ? "Skipped. Saved to corrections.txt" : decision === "auto" ? "Back to automatic matching" : "Saved to corrections.txt");
+    await load();
+  } catch (e) { toast(e.message, true); }
+}
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  const d = t.dataset;
+  if (d.filter) { filter = d.filter; document.querySelectorAll("[data-filter]").forEach((b) => b.setAttribute("aria-pressed", String(b === t))); render(); }
+  else if (d.use) decide(d.file, d.use);
+  else if (d.skip) decide(d.skip, "skip");
+  else if (d.auto) decide(d.auto, "auto");
+  else if (d.paste) {
+    const v = document.querySelector(`[data-link="${CSS.escape(d.paste)}"]`).value.trim();
+    if (!v) { toast("Paste a TMDB or IMDb link (or a TMDB id) into the box first.", true); return; }
+    try {
+      const found = await api(`/api/lookup?d=${encodeURIComponent(v)}`);
+      if (found.kind === "tmdb" && !confirm(`Use “${found.title}” (${found.year || "no year"}) for\n${d.paste}?`)) return;
+      decide(d.paste, found.decision || v);
+    } catch (err) { toast(err.message, true); }
+  }
+  else if (d.search) {
+    const q = document.querySelector(`[data-q="${CSS.escape(d.search)}"]`).value.trim();
+    const box = document.querySelector(`[data-results="${CSS.escape(d.search)}"]`);
+    box.innerHTML = '<p class="muted">Searching TMDB...</p>';
+    try {
+      const yearMatch = q.match(/\b(18|19|20)\d{2}\b/);
+      const res = await api(`/api/search?q=${encodeURIComponent(q.replace(/\b(18|19|20)\d{2}\b/, "").trim() || q)}&year=${encodeURIComponent(yearMatch ? yearMatch[0] : d.year)}`);
+      box.innerHTML = res.length ? `<div class="cands">${res.map((c) => candHtml({ file: d.search }, c)).join("")}</div>` : '<p class="muted">TMDB found nothing. Try another spelling or the original title.</p>';
+    } catch (err) { box.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+  }
+  else if (t.id === "rebuild") {
+    t.disabled = true; toast("Rebuilding the map...");
+    try { const r = await api("/api/build", {}); toast(r.message); } catch (err) { toast(err.message, true); }
+    load();
+  }
+});
+$("#find").addEventListener("input", render);
+load().then(() => { if (!visible().length && filter === "review") { filter = "good"; document.querySelectorAll("[data-filter]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.filter === "good"))); render(); } }).catch((e) => toast(e.message, true));
+</script>
+</body>
+</html>

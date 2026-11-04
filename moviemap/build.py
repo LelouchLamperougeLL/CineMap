@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 import numpy as np
 
 from . import store
-from .config import (DATA_DIR, DATA_JS, DB_DIR, ENV_PATH, INDEX_HTML, LAYOUT_PATH, load_settings,
+from .config import (DATA_DIR, DATA_JS, DB_DIR, ENV_PATH, INDEX_HTML, LAYOUT_PATH, ROOT, load_settings,
                      load_tmdb_credential)
 from .features import BLOCK_WEIGHTS, KEYWORD_STOPLIST, similarity
 from .languages import display_name
@@ -57,11 +57,13 @@ def _people(rec: dict, role: str, limit: int) -> list[str]:
     return out[:limit]
 
 
-def _fingerprint(records: dict[int, dict], files: dict[int, list[str]], added: dict[int, str], settings) -> str:
+def _fingerprint(records: dict[int, dict], files: dict[int, list[str]], added: dict[int, str], settings,
+                 unplaced: list | None = None) -> str:
     h = hashlib.sha256()
     h.update(f"v{BUILD_VERSION}|{json.dumps(BLOCK_WEIGHTS, sort_keys=True)}".encode())
     h.update(f"|{settings.title}|{settings.tagline}|{settings.drive_folder_url}".encode())
     h.update(json.dumps(settings_cluster_names(), sort_keys=True).encode())
+    h.update(json.dumps(unplaced or [], sort_keys=True, ensure_ascii=False).encode("utf-8"))
     for i in sorted(records):
         rec = {k: v for k, v in records[i].items() if k != "fetched"}
         h.update(json.dumps([i, rec, sorted(files[i]), added.get(i, "")], sort_keys=True,
@@ -138,10 +140,49 @@ def _cluster_name(member_recs: list[dict], all_recs: list[dict]) -> tuple[str, s
 
 
 # --- main build ---------------------------------------------------------------------------------
+MANIFEST_PATH = ROOT / "manifest.webmanifest"
+SW_PATH = ROOT / "sw.js"
+
+
+def _write_manifest(settings) -> None:
+    """The web-app manifest (what an installed app is called and looks like), from settings.toml."""
+    short = settings.title if len(settings.title) <= 12 else settings.title.split()[0][:12]
+    icon = lambda src, size, purpose="any": {"src": src, "sizes": size, "type": "image/png", "purpose": purpose}
+    store.write_json(MANIFEST_PATH, {
+        "id": "./",
+        "name": settings.title,
+        "short_name": short,
+        "description": settings.tagline,
+        "lang": "en",
+        "dir": "ltr",
+        "start_url": "./",
+        "scope": "./",
+        "display": "standalone",
+        "orientation": "any",
+        "background_color": "#0c1428",
+        "theme_color": "#0c1428",
+        "categories": ["entertainment"],
+        "icons": [
+            icon("assets/icons/icon-192.png", "192x192"),
+            icon("assets/icons/icon-512.png", "512x512"),
+            icon("assets/icons/maskable-512.png", "512x512", "maskable"),
+            {"src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"},
+        ],
+        "shortcuts": [
+            {"name": "A random film", "short_name": "Random", "url": "./#random",
+             "icons": [icon("assets/icons/icon-192.png", "192x192")]},
+            {"name": "Browse the collection", "short_name": "Browse", "url": "./#browse",
+             "icons": [icon("assets/icons/icon-192.png", "192x192")]},
+        ],
+    }, indent=2)
+
+
 def build_map(force: bool = False, relayout: bool = False, log=print) -> str:
     settings = load_settings()
+    _write_manifest(settings)
     names = store.read_collection(settings.source_path)
-    ledger = store.load_matches()["files"]
+    all_matches = store.load_matches()
+    ledger = all_matches["files"]
 
     files: dict[int, list[str]] = defaultdict(list)
     added: dict[int, str] = {}
@@ -166,28 +207,31 @@ def build_map(force: bool = False, relayout: bool = False, log=print) -> str:
             records[fid] = rec
     if len(records) < 3:
         return "Not enough matched films to draw a map yet."
-    _prune_unused_records(set(records), ledger)
+    _prune_unused_records(set(records), {**all_matches.get("removed", {}), **ledger})
 
     previous = store.read_json(LAYOUT_PATH, default={}) or {}
-    fp = _fingerprint(records, files, added, settings)
+    fp = _fingerprint(records, files, added, settings, unplaced)
     if not force and previous.get("fingerprint") == fp and DATA_JS.exists():
         return "Map is up to date. Nothing to do."
 
     ids = sorted(records)
     recs = [records[i] for i in ids]
     log(f"Building the map for {len(ids)} films ...")
-    S, _ = similarity(recs)
-    D = 1.0 - S
-    np.fill_diagonal(D, 0.0)
 
-    # Ordinary updates leave every film already on the map exactly where it is, in its region.
-    # A full re-layout happens only on request or once the collection has changed by 15%.
+    # Ordinary updates leave every film already on the map exactly where it is, in its region,
+    # and reuse the collection-wide statistics of the last full re-layout, so only films related
+    # to what changed get new neighbours or scores. A full re-layout happens only on request or
+    # once the collection has changed by 15%.
     prev_pos = previous.get("positions") or {}
     prev_ids = {int(k) for k in prev_pos}
     old_clusters = previous.get("clusters", [])
-    base = previous.get("full_count") or len(prev_ids)
-    changed = len(set(ids) ^ prev_ids)
+    full_ids = {int(i) for i in previous.get("full_ids") or []} or prev_ids
+    base = len(full_ids)
+    changed = len(set(ids) ^ full_ids)
     full = relayout or not prev_ids or not old_clusters or changed >= 0.15 * max(base, 1)
+    S, _, calibration = similarity(recs, calibration=None if full else previous.get("calibration"))
+    D = 1.0 - S
+    np.fill_diagonal(D, 0.0)
     Y, lstats = compute_layout(D, S, ids, prev_pos or None,
                                None if relayout else previous.get("raw_span"), full=full, log=log)
 
@@ -204,7 +248,7 @@ def build_map(force: bool = False, relayout: bool = False, log=print) -> str:
         new_members = {k: {ids[i] for i in np.flatnonzero(labels == k)} for k in ks}
         pairing = {k: old_clusters[k] for k in ks}
     W = memberships(S, labels) if ks else np.zeros((len(ids), 0))
-    next_id = max([int(c["id"][1:]) for c in old_clusters] + [0]) + 1
+    next_id = max([int(c["id"][1:]) for c in old_clusters] + [int(previous.get("next_region") or 1) - 1, 0]) + 1
     centre = Y.mean(0)
     clusters = []
     for k in ks:
@@ -226,30 +270,41 @@ def build_map(force: bool = False, relayout: bool = False, log=print) -> str:
         auto_name, tagline = _cluster_name(member_recs, recs)
         c["auto_name"], c["tagline"] = auto_name, tagline
         c["name"] = custom.get(c["id"], auto_name)
-        c["color"] = cluster_colour(c["hue"], i)
+        c["color"] = cluster_colour(c["hue"], int(c["id"][1:]))
     _dedupe_names(clusters)
 
     # Neighbours, with a 0-100 "how close" score calibrated on this collection: a typical pair
     # scores 0, the closest 0.1% of pairs score about 85 and up, near-twins (sequels) approach 100.
-    off = S[~np.eye(len(ids), dtype=bool)]
-    lo, top = float(np.percentile(off, 50)), float(np.percentile(off, 99.9))
-    tau = max(1e-6, (top - lo) / 1.9)
+    if not full and previous.get("closeness"):
+        lo, tau = previous["closeness"]
+    else:
+        off = S[~np.eye(len(ids), dtype=bool)]
+        lo, high = float(np.percentile(off, 50)), float(np.percentile(off, 99.9))
+        lo, tau = round(lo, 6), round(max(1e-6, (high - lo) / 1.9), 6)
     closeness = lambda s: int(round(100 * (1 - math.exp(-max(0.0, s - lo) / tau))))
-    order = np.argsort(-S, axis=1)
+    order = np.argsort(-S, axis=1, kind="stable")
     k_index = {c["k"]: j for j, c in enumerate(clusters)}
 
     genre_names = sorted({g for r in recs for g in r.get("genres", [])})
+    index_of_id = {c["id"]: j for j, c in enumerate(clusters)}
+    kept_blends = {} if full else (previous.get("memberships") or {})
+    blends_out = {}
+    hard = {fid: index_of_id.get(c["id"]) for c in clusters for fid in c["members"]}
     films_out = []
     for row, fid in enumerate(ids):
         r = records[fid]
         nb = [j for j in order[row] if j != row][:NEIGHBOURS]
         mem = []
-        if len(ks):
-            top = np.argsort(-W[row])[:3]
-            for t in top:
+        stored = kept_blends.get(str(fid))
+        if stored and all(cid in index_of_id for cid, _ in stored):
+            mem = [[index_of_id[cid], w] for cid, w in stored]
+        elif len(ks):
+            strongest = np.argsort(-W[row], kind="stable")[:3]
+            for t in strongest:
                 if W[row, t] >= 0.08:
                     mem.append([k_index[ks[t]], round(float(W[row, t]), 2)])
-        films_out.append(_film_entry(r, files[fid], added.get(fid, ""), Y[row], mem,
+        blends_out[str(fid)] = [[clusters[j]["id"], w] for j, w in mem]
+        films_out.append(_film_entry(r, files[fid], added.get(fid, ""), Y[row], mem, hard.get(fid),
                                      [ids[j] for j in nb],
                                      [min(99, closeness(float(S[row, j]))) for j in nb],
                                      genre_names))
@@ -272,15 +327,19 @@ def build_map(force: bool = False, relayout: bool = False, log=print) -> str:
     unplaced.sort(key=lambda u: (u["t"] or "").casefold())
     _write_js(meta, clusters_out, films_out, unplaced)
 
-    store.write_json(LAYOUT_PATH, {
+    _write_layout({
         "fingerprint": fp,
         "built": meta["built"],
-        "full_count": len(ids) if full else base,
+        "full_ids": sorted(ids) if full else sorted(full_ids),
+        "next_region": next_id,
         "raw_span": lstats.get("raw_span"),
-        "positions": {str(fid): [round(float(Y[i, 0]), 2), round(float(Y[i, 1]), 2)] for i, fid in enumerate(ids)},
+        "calibration": calibration,
+        "closeness": [lo, tau],
+        "memberships": blends_out,
         "clusters": [{"id": c["id"], "hue": c["hue"], "auto_name": c["auto_name"], "members": c["members"]}
                      for c in clusters],
-    }, indent=None)
+        "positions": {str(fid): [round(float(Y[i, 0]), 2), round(float(Y[i, 1]), 2)] for i, fid in enumerate(ids)},
+    })
 
     problems = safety_check()
     noise = int((labels < 0).sum())
@@ -297,6 +356,24 @@ def build_map(force: bool = False, relayout: bool = False, log=print) -> str:
         lines.append(f"  {len(unplaced)} file(s) are listed but not on the map until reviewed")
     lines += [f"  ! {p}" for p in problems]
     return "\n".join(lines)
+
+
+def _write_layout(data: dict) -> None:
+    """layout.json with one cluster and one film per line, so git diffs show only what moved."""
+    j = lambda x: json.dumps(x, ensure_ascii=False, separators=(",", ":"))
+    lines = ["{"]
+    for key in ("fingerprint", "built", "next_region", "raw_span", "calibration", "closeness", "full_ids"):
+        lines.append(f"{j(key)}:{j(data[key])},")
+    lines.append('"clusters":[')
+    lines.append(",\n".join(j(c) for c in data["clusters"]))
+    lines.append('],\n"memberships":{')
+    lines.append(",\n".join(f"{j(k)}:{j(v)}" for k, v in data["memberships"].items()))
+    lines.append('},\n"positions":{')
+    lines.append(",\n".join(f"{j(k)}:{j(v)}" for k, v in data["positions"].items()))
+    lines.append("}}")
+    text = "\n".join(lines) + "\n"
+    json.loads(text)  # never write something that can't be read back
+    store.write_text_atomic(LAYOUT_PATH, text)
 
 
 def _prune_unused_records(in_use: set[int], ledger: dict) -> None:
@@ -321,7 +398,7 @@ def _dedupe_names(clusters: list[dict]) -> None:
             c["name"] = f"{c['name']}: {first}"
 
 
-def _film_entry(r: dict, files: list[str], added: str, xy, mem, nb_ids, nb_scores, genre_names) -> dict:
+def _film_entry(r: dict, files: list[str], added: str, xy, mem, region, nb_ids, nb_scores, genre_names) -> dict:
     gi = {g: i for i, g in enumerate(genre_names)}
     e = {
         "id": r["id"],
@@ -349,6 +426,7 @@ def _film_entry(r: dict, files: list[str], added: str, xy, mem, nb_ids, nb_score
         "va": round(r.get("vote_average") or 0, 1),
         "vc": r.get("vote_count") or 0,
         "m": mem,
+        "h": -1 if region is None else region,
         "n": nb_ids,
         "s": nb_scores,
         "f": files,
@@ -384,24 +462,36 @@ def _write_js(meta: dict, clusters: list[dict], films: list[dict], unplaced: lis
 
 
 # --- safety -------------------------------------------------------------------------------------
+PUBLIC_TEXT_SUFFIXES = {".html", ".js", ".css", ".json", ".webmanifest", ".svg", ".txt"}
+
+
+def public_files() -> list:
+    """Every file the published site serves (the deploy workflow copies exactly these)."""
+    files = [INDEX_HTML, MANIFEST_PATH, SW_PATH]
+    for folder in (ROOT / "assets", DATA_DIR):
+        files += sorted(p for p in folder.glob("**/*") if p.is_file())
+    return [p for p in files if p.exists()]
+
+
 def safety_check() -> list[str]:
     """Everything the browser loads must be free of the TMDB key and of the forbidden word."""
     problems = []
     key = (load_tmdb_credential() or "").strip()
-    public = [INDEX_HTML] + sorted(p for p in DATA_DIR.glob("**/*") if p.is_file())
-    for path in public:
-        if not path.exists():
+    for path in public_files():
+        rel = path.relative_to(ROOT).as_posix()
+        raw = path.read_bytes()
+        if key and key.encode().lower() in raw.lower():
+            problems.append(f"{rel} contains the TMDB key!")
+        if path.suffix.lower() not in PUBLIC_TEXT_SUFFIXES:
             continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if key and key.casefold() in text.casefold():
-            problems.append(f"{path.name} contains the TMDB key!")
+        text = raw.decode("utf-8", errors="replace")
         if re.search(r"api_key|themoviedb\.org/3/|api\.tmdb\.org", text):
-            problems.append(f"{path.name} mentions the TMDB API itself")
-        if path == INDEX_HTML:
+            problems.append(f"{rel} mentions the TMDB API itself")
+        if path != DATA_JS:  # the film entries in movies.js are TMDB's own texts; checked below
             own = re.sub(r"font-family", "", text, flags=re.IGNORECASE)
             for n, line in enumerate(own.splitlines(), 1):
                 if FORBIDDEN_WORDS.search(line):
-                    problems.append(f"index.html line {n} uses the word 'family'")
+                    problems.append(f"{rel} line {n} uses the word 'family'")
     if DATA_JS.exists():
         text = DATA_JS.read_text(encoding="ascii", errors="replace")
         m = re.search(r'^"meta":(.*),$', text, re.MULTILINE)

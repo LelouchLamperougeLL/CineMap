@@ -10,6 +10,7 @@ title = "Lumière"
 tagline = "The closer two films sit, the more they have in common."
 
 # Optional link to the shared Drive folder, shown on each film as "Open the collection folder".
+# Anyone who has the map's address will see this link (they still need Drive access to open it).
 drive_folder_url = ""
 
 # How many TMDB requests per second the fetcher may make (TMDB allows far more; this is polite).

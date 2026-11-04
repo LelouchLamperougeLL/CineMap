@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Lumière</title>
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="44%" r="70%">
+      <stop offset="0" stop-color="#1d2f5c"/>
+      <stop offset="0.55" stop-color="#0c1428"/>
+      <stop offset="1" stop-color="#060b18"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#f1e8d4" stop-opacity="0.55"/>
+      <stop offset="0.35" stop-color="#e9c98f" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#e9c98f" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <circle cx="256" cy="256" r="190" fill="url(#halo)"/>
+  <g filter="url(#soft)" opacity="0.9">
+    <circle cx="140" cy="168" r="13" fill="#f2b45f"/>
+    <circle cx="378" cy="150" r="11" fill="#58cdb7"/>
+    <circle cx="398" cy="330" r="13" fill="#9d8ff0"/>
+    <circle cx="150" cy="356" r="11" fill="#ee8fb4"/>
+    <circle cx="256" cy="108" r="8" fill="#7fb6ef"/>
+  </g>
+  <g>
+    <circle cx="140" cy="168" r="5" fill="#ffe3b8"/>
+    <circle cx="378" cy="150" r="4.5" fill="#c9fff3"/>
+    <circle cx="398" cy="330" r="5" fill="#e4ddff"/>
+    <circle cx="150" cy="356" r="4.5" fill="#ffd9e8"/>
+    <circle cx="256" cy="108" r="3.5" fill="#dceeff"/>
+  </g>
+  <path d="M256 96 C266 206 306 246 416 256 C306 266 266 306 256 416 C246 306 206 266 96 256 C206 246 246 206 256 96 Z" fill="#f1e8d4" filter="url(#soft)" opacity="0.65"/>
+  <path d="M256 96 C266 206 306 246 416 256 C306 266 266 306 256 416 C246 306 206 266 96 256 C206 246 246 206 256 96 Z" fill="#f8f1e2"/>
+  <circle cx="256" cy="256" r="14" fill="#ffffff"/>
+</svg>

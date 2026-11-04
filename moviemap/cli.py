@@ -14,7 +14,8 @@ from .config import ENV_PATH, HTTP_CACHE, LAYOUT_PATH, ROOT, load_settings, load
 from .tmdb import TMDB, ResponseCache
 
 # What gets committed when publishing (everything else stays local or is git-ignored).
-PUBLISH_PATHS = ["index.html", "assets", "data", "db", "corrections.txt", "settings.toml", "files.csv",
+PUBLISH_PATHS = ["index.html", "manifest.webmanifest", "sw.js", "assets", "data", "db", "corrections.txt",
+                 "settings.toml", "files.csv",
                  "README.md", "moviemap", "tests", "requirements.txt", "update.cmd", "review.cmd",
                  ".github", ".gitignore", ".gitattributes"]
 
@@ -39,7 +40,8 @@ def _print_sync(rep) -> None:
     print()
     print(f"Collection: {rep.total} files"
           + (f", {len(rep.new)} new" if rep.new else "")
-          + (f", {len(rep.removed)} removed" if rep.removed else ""))
+          + (f", {len(rep.removed)} removed (kept aside in case they come back)" if rep.removed else "")
+          + (f", {len(rep.restored)} back again" if rep.restored else ""))
     if rep.matched:
         print(f"  matched automatically: {len(rep.matched)}")
     if rep.manual:
@@ -76,7 +78,8 @@ def cmd_update(args) -> int:
     print(f"Reading {settings.source_path.name}: {len(names)} files")
     t0 = time.time()
     try:
-        rep = sync(names, tmdb)
+        interactive = not getattr(args, "no_prompt", False) and sys.stdin is not None and sys.stdin.isatty()
+        rep = sync(names, tmdb, confirm_removal=_confirm_removal if interactive else None)
     finally:
         tmdb.close()
     _print_sync(rep)
@@ -92,6 +95,14 @@ def cmd_update(args) -> int:
         if _ask("Publish the updated map to GitHub now?", default=False):
             return cmd_publish(args)
     return code
+
+
+def _confirm_removal(missing: list[str]) -> bool:
+    print(f"\n{len(missing)} files that were in the collection are missing from the listing, for example:")
+    for name in missing[:8]:
+        print(f"   - {name}")
+    print("If the export was cut short, answer no and export it again.")
+    return _ask("Treat them as removed? (they are kept aside and come back if listed again)", default=False)
 
 
 def _ask(question: str, default: bool) -> bool:
@@ -166,6 +177,7 @@ def cmd_rematch(args) -> int:
     print(f"Re-matching {len(chosen)} file(s)")
     tmdb = _client(settings)
     try:
+        tmdb.fresh_searches = True  # "match again" means asking TMDB again, not replaying old answers
         rep = sync(names, tmdb, rematch=chosen)
     finally:
         tmdb.close()
@@ -254,9 +266,22 @@ def _existing_publish_paths() -> list[str]:
     return [p for p in PUBLISH_PATHS if (ROOT / p).exists()]
 
 
+def _has_upstream() -> bool:
+    return _git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}").returncode == 0
+
+
+def _unpushed() -> bool:
+    """True when local commits are not on GitHub yet (a failed push, a commit made by hand,
+    or a branch that was never pushed)."""
+    if not _has_upstream():
+        return _git("rev-parse", "--verify", "-q", "HEAD").returncode == 0
+    ahead = _git("rev-list", "--count", "@{u}..HEAD")
+    return ahead.returncode == 0 and ahead.stdout.strip() not in ("", "0")
+
+
 def _pending_changes() -> bool:
     out = _git("status", "--porcelain", "--", *_existing_publish_paths()).stdout
-    return bool(out.strip())
+    return bool(out.strip()) or _unpushed()
 
 
 def cmd_publish(args) -> int:
@@ -276,18 +301,23 @@ def cmd_publish(args) -> int:
         return 1
     paths = _existing_publish_paths()
     _git("add", "--", *paths)
-    if not _git("diff", "--cached", "--name-only").stdout.strip():
+    if _git("diff", "--cached", "--name-only").stdout.strip():
+        data = store.read_json(LAYOUT_PATH, default={}) or {}
+        count = len(data.get("positions") or {})
+        msg = f"Update the map ({count} films, {dt.date.today().isoformat()})"
+        commit = _git("commit", "-m", msg)
+        if commit.returncode != 0:
+            print(commit.stdout + commit.stderr)
+            return 1
+        print(f"Committed: {msg}")
+    elif not _unpushed():
         print("Nothing new to publish.")
         return 0
-    data = store.read_json(LAYOUT_PATH, default={}) or {}
-    count = len(data.get("positions") or {})
-    msg = f"Update the map ({count} films, {dt.date.today().isoformat()})"
-    commit = _git("commit", "-m", msg)
-    if commit.returncode != 0:
-        print(commit.stdout + commit.stderr)
-        return 1
-    print(f"Committed: {msg}\nPushing to GitHub ...")
-    push = _git("push")
+    print("Pushing to GitHub ...")
+    if _has_upstream():
+        push = _git("push")
+    else:  # first push of this branch: remember where it goes
+        push = _git("push", "-u", _git("remote").stdout.split()[0], "HEAD")
     print((push.stdout + push.stderr).strip())
     if push.returncode != 0:
         print("The push failed; the commit is saved locally. Fix the problem above and run publish again.")
